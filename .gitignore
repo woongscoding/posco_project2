@@ -1,0 +1,8 @@
+# API 키/시크릿 — 절대 커밋 금지
+.env
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/

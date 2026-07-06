@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --line: #b0bec5; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Malgun Gothic", "NanumGothic", "Apple SD Gothic Neo", sans-serif;
+    background: #ffffff; color: #263238; padding: 2px;
+  }
+  .hint { font-size: 11.5px; color: #90a4ae; margin: 0 0 8px 2px; }
+
+  /* ---- 툴바 (줌/전체화면) ---- */
+  #toolbar {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.95);
+    padding: 4px 2px; border-radius: 8px;
+  }
+  #toolbar button {
+    font-family: inherit; font-size: 12.5px; padding: 4px 10px;
+    border: 1.5px solid #b0bec5; border-radius: 8px; background: #fff;
+    cursor: pointer; color: #37474f;
+  }
+  #toolbar button:hover { background: #eceff1; }
+  #toolbar button.active { border-color: #1565c0; color: #1565c0; font-weight: bold; }
+  #zoomlabel { font-size: 12px; color: #546e7a; min-width: 42px; text-align: center; }
+
+  :fullscreen { overflow: auto; background: #fff; }
+  :fullscreen body { overflow: auto; }
+
+  /* ---- 미배치 트레이 ---- */
+  #tray-wrap {
+    border: 2px dashed #90a4ae; border-radius: 10px;
+    padding: 8px 10px; margin-bottom: 14px; background: #f5f7f9;
+  }
+  #tray-wrap.over { border-color: #1565c0; background: #e3f2fd; }
+  #tray-title { font-size: 12px; font-weight: bold; color: #546e7a; margin-bottom: 6px; }
+  #tray { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff; border: 1.5px solid #78909c; border-radius: 16px;
+    padding: 4px 10px; font-size: 13px; cursor: grab; user-select: none;
+  }
+  .chip.succ { border-color: #1565c0; border-width: 2px; }
+  .chip.core { border-color: #6a1b9a; border-width: 2px; color: #6a1b9a; font-weight: bold; }
+  .chip .lv { font-size: 10px; color: #fff; border-radius: 8px; padding: 1px 6px; }
+  .chip:active { cursor: grabbing; }
+
+  /* ---- CSS 조직도 트리 (연결선) ---- */
+  .tree { overflow-x: auto; padding: 4px 2px 14px; }
+  #zoomwrap { display: inline-block; transform-origin: top left; }
+  .tree ul {
+    display: flex; justify-content: center; align-items: flex-start;
+    padding-top: 26px; position: relative; list-style: none;
+  }
+  .tree > ul { padding-top: 0; }
+  .tree li {
+    display: flex; flex-direction: column; align-items: center;
+    position: relative; padding: 0 10px;
+  }
+  .tree li::before, .tree li::after {
+    content: ""; position: absolute; top: 0; right: 50%;
+    border-top: 2px solid var(--line); width: 50%; height: 26px;
+  }
+  .tree li::after { right: auto; left: 50%; border-left: 2px solid var(--line); }
+  .tree li:only-child::before, .tree li:only-child::after { display: none; }
+  .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
+  .tree li:last-child::before { border-right: 2px solid var(--line); border-radius: 0 6px 0 0; }
+  .tree li:first-child::after { border-radius: 6px 0 0 0; }
+  .tree ul ul::before {
+    content: ""; position: absolute; top: 0; left: 50%;
+    border-left: 2px solid var(--line); width: 0; height: 26px;
+  }
+  .tree > ul > li::before, .tree > ul > li::after { display: none; }
+
+  /* ---- 명함형 카드 ---- */
+  .card {
+    width: 205px; background: #fff; border: 3px solid #37474f; border-radius: 10px;
+    overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,.08); text-align: left;
+  }
+  .card.vacant { border-style: dashed; }
+  .card.over { outline: 3px solid #1565c0; outline-offset: 2px; }
+  .candidate-target { outline: 3px dashed #66bb6a; outline-offset: 2px; }
+  #tray-wrap.candidate-target { border-color: #66bb6a; }
+  .strip { color: #fff; font-size: 12.5px; font-weight: bold; padding: 5px 9px; }
+  .cbody { display: flex; gap: 8px; padding: 8px 9px 4px; align-items: center; border-radius: 6px; }
+  .cbody.draggable { cursor: grab; }
+  .cbody.draggable:hover { background: #eceff1; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; background: #cfd8dc; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 17px;
+  }
+  .nm { font-size: 17px; font-weight: 800; }
+  .gr { font-size: 11.5px; color: #546e7a; margin-top: 1px; }
+  .path { font-size: 10.5px; color: #78909c; padding: 0 9px 6px; }
+  .roster {
+    background: #f5f7f9; margin: 0 7px 7px; border-radius: 6px;
+    padding: 5px 7px; display: flex; flex-direction: column; gap: 3px;
+  }
+  .rrow {
+    font-size: 12px; color: #455a64; padding: 2px 5px; border-radius: 4px;
+    background: #fff; border: 1px solid #eceff1; cursor: grab; user-select: none;
+  }
+  .rrow.core { color: #6a1b9a; font-weight: bold; border-color: #d1c4e9; }
+  .rrow.vac { color: #c62828; font-weight: bold; cursor: default; background: transparent; border: 1px dashed #ef9a9a; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 9px 8px; }
+  .badge { font-size: 10px; color: #fff; padding: 2px 7px; border-radius: 9px; font-weight: bold; white-space: nowrap; }
+  .dragging { opacity: .4; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+"use strict";
+/* ---- Streamlit 커스텀 컴포넌트 프로토콜 (경량 수동 구현) ---- */
+function smsg(type, data) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data), "*");
+}
+function setValue(v) { smsg("streamlit:setComponentValue", { dataType: "json", value: v }); }
+
+/* 높이는 콘텐츠 실측값으로, "바뀐 경우에만" 보고한다.
+   documentElement.scrollHeight는 iframe 높이 이상으로만 측정되어
+   +N씩 무한 증가(→호스트 재렌더 루프 →드래그 중 DOM 파괴)를 유발했음. */
+var lastHeight = -1;
+function setHeight() {
+  var root = document.getElementById("root");
+  var h = Math.ceil(root.getBoundingClientRect().height) + 16;
+  if (h !== lastHeight) {
+    lastHeight = h;
+    smsg("streamlit:setFrameHeight", { height: h });
+  }
+}
+
+var dragMeta = null;   // {emp, level, fromSlot}
+var seq = 0;
+var lastPayloadJson = null;
+
+/* ---- 줌: 기본은 '화면 맞춤'(가로로 긴 조직도가 한눈에 들어오게) ---- */
+var zoomMode = "fit";   // "fit" | "manual"
+var zoomLevel = 1.0;
+
+function currentScale() {
+  var tree = document.querySelector(".tree");
+  var wrap = document.getElementById("zoomwrap");
+  if (!tree || !wrap) return 1;
+  if (zoomMode === "fit") {
+    var natural = wrap.scrollWidth || 1;
+    return Math.min(1, (tree.clientWidth - 8) / natural);
+  }
+  return zoomLevel;
+}
+
+function applyZoom() {
+  var wrap = document.getElementById("zoomwrap");
+  if (!wrap) return;
+  var scale = currentScale();
+  wrap.style.transform = "scale(" + scale + ")";
+  var label = document.getElementById("zoomlabel");
+  if (label) label.textContent = Math.round(scale * 100) + "%";
+  var fitBtn = document.getElementById("fitbtn");
+  if (fitBtn) fitBtn.classList.toggle("active", zoomMode === "fit");
+  setHeight();
+}
+
+function zoomStep(delta) {
+  zoomLevel = Math.min(1.6, Math.max(0.3, currentScale() + delta));
+  zoomMode = "manual";
+  applyZoom();
+}
+
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function markCandidateTargets() {
+  document.querySelectorAll("[data-droptarget='1']").forEach(function (n) {
+    if (dragMeta && n._accepts && n._accepts(dragMeta)) n.classList.add("candidate-target");
+  });
+}
+function clearCandidateTargets() {
+  document.querySelectorAll(".candidate-target").forEach(function (n) {
+    n.classList.remove("candidate-target");
+  });
+}
+
+function makeDraggable(node, emp, level, fromSlot) {
+  node.draggable = true;
+  node.classList.add("draggable");
+  node.dataset.emp = emp;
+  node.dataset.level = level;
+  node.addEventListener("dragstart", function (ev) {
+    dragMeta = { emp: emp, level: level, fromSlot: fromSlot || null };
+    ev.dataTransfer.setData("text/plain", emp);
+    ev.dataTransfer.effectAllowed = "move";
+    node.classList.add("dragging");
+    markCandidateTargets();  // 놓을 수 있는 곳을 초록 점선으로 표시
+  });
+  node.addEventListener("dragend", function () {
+    dragMeta = null;
+    node.classList.remove("dragging");
+    clearCandidateTargets();
+    document.querySelectorAll(".over").forEach(function (x) { x.classList.remove("over"); });
+  });
+}
+
+function makeDropTarget(node, canAccept, onDrop) {
+  node.dataset.droptarget = "1";
+  node._accepts = canAccept;
+  node.addEventListener("dragover", function (ev) {
+    if (dragMeta && canAccept(dragMeta)) { ev.preventDefault(); node.classList.add("over"); }
+  });
+  node.addEventListener("dragleave", function () { node.classList.remove("over"); });
+  node.addEventListener("drop", function (ev) {
+    ev.preventDefault();
+    node.classList.remove("over");
+    if (dragMeta && canAccept(dragMeta)) onDrop(dragMeta);
+  });
+}
+
+function sendAction(action, emp, slot) {
+  seq += 1;
+  setValue({ id: Date.now() + "-" + seq, action: action, emp: emp, slot: slot || null });
+}
+
+function buildCard(c, track) {
+  var card = el("div", "card");
+  card.dataset.slot = c.slot_id;
+  card.dataset.level = c.level;
+  card.style.borderColor = c.border;
+  if (c.vacant) card.classList.add("vacant");
+
+  var strip = el("div", "strip", c.title);
+  strip.style.background = c.strip;
+  card.appendChild(strip);
+
+  var body = el("div", "cbody");
+  body.appendChild(el("div", "avatar", c.initial));
+  var info = el("div", "");
+  info.appendChild(el("div", "nm", c.name));
+  info.appendChild(el("div", "gr", c.sub));
+  body.appendChild(info);
+  if (c.emp && c.draggable) makeDraggable(body, c.emp, c.level, c.slot_id);
+  card.appendChild(body);
+
+  if (c.path) card.appendChild(el("div", "path", c.path));
+
+  if (c.roster && c.roster.length) {
+    var ro = el("div", "roster");
+    c.roster.forEach(function (r) {
+      if (r.vacant) {
+        ro.appendChild(el("div", "rrow vac", "○ 공석"));
+      } else {
+        var row = el("div", "rrow" + (r.core ? " core" : ""),
+                     "● " + r.name + " · " + r.grade + (r.core ? " ★" : ""));
+        makeDraggable(row, r.emp, "직원", c.slot_id);
+        ro.appendChild(row);
+      }
+    });
+    card.appendChild(ro);
+  }
+
+  if (c.badges && c.badges.length) {
+    var bs = el("div", "badges");
+    c.badges.forEach(function (b) {
+      var sp = el("span", "badge", b.text);
+      sp.style.background = b.color;
+      bs.appendChild(sp);
+    });
+    card.appendChild(bs);
+  }
+
+  /* 드롭 대상: 트랙A=모든 카드(임원/부장/리더 누구든 — 발탁 배치 허용),
+     트랙B=리더 카드(직원만) */
+  if (track === "A") {
+    makeDropTarget(card,
+      function (m) { return m.level !== "직원" && m.fromSlot !== c.slot_id; },
+      function (m) { sendAction("move", m.emp, c.slot_id); });
+  } else if (track === "B" && c.level === "리더") {
+    makeDropTarget(card,
+      function (m) { return m.level === "직원" && m.fromSlot !== c.slot_id; },
+      function (m) { sendAction("team", m.emp, c.position_id); });
+  }
+  return card;
+}
+
+function buildNode(node, track) {
+  var li = el("li");
+  li.appendChild(buildCard(node.card, track));
+  if (node.children && node.children.length) {
+    var ul = el("ul");
+    node.children.forEach(function (ch) { ul.appendChild(buildNode(ch, track)); });
+    li.appendChild(ul);
+  }
+  return li;
+}
+
+function buildToolbar() {
+  var bar = el("div", "");
+  bar.id = "toolbar";
+
+  var minus = el("button", "", "－");
+  minus.addEventListener("click", function () { zoomStep(-0.1); });
+  var label = el("span", "", "100%");
+  label.id = "zoomlabel";
+  var plus = el("button", "", "＋");
+  plus.addEventListener("click", function () { zoomStep(0.1); });
+  var fit = el("button", "", "화면 맞춤");
+  fit.id = "fitbtn";
+  fit.addEventListener("click", function () { zoomMode = "fit"; applyZoom(); });
+  var full100 = el("button", "", "100%");
+  full100.addEventListener("click", function () { zoomMode = "manual"; zoomLevel = 1; applyZoom(); });
+
+  bar.appendChild(minus); bar.appendChild(label); bar.appendChild(plus);
+  bar.appendChild(fit); bar.appendChild(full100);
+
+  if (document.fullscreenEnabled) {
+    var fs = el("button", "", "⛶ 전체화면");
+    fs.addEventListener("click", function () {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function () {});
+      } else {
+        document.exitFullscreen();
+      }
+    });
+    bar.appendChild(fs);
+  }
+  return bar;
+}
+
+function render(payload) {
+  var root = document.getElementById("root");
+  root.innerHTML = "";
+
+  root.appendChild(buildToolbar());
+  root.appendChild(el("div", "hint",
+    payload.track === "A"
+      ? "카드 속 인물을 드래그해 아무 포지션 카드로나 이동(상위 직책 배치 시 '발탁' 표시) · 트레이로 끌면 배치 해제 · 점유된 자리는 기존 인원이 트레이로 밀려납니다"
+      : "팀원(카드 안 명단)이나 트레이 후보를 드래그해 팀장 카드에 놓으면 해당 팀으로 배치됩니다"));
+
+  var trayWrap = el("div", "");
+  trayWrap.id = "tray-wrap";
+  var title = el("div", "", "미배치 트레이 (" + payload.tray.length + "명)");
+  title.id = "tray-title";
+  trayWrap.appendChild(title);
+  var tray = el("div", "");
+  tray.id = "tray";
+  payload.tray.forEach(function (p) {
+    var chip = el("div", "chip" + (p.succ ? " succ" : "") + (p.core ? " core" : ""));
+    var lv = el("span", "lv", p.level);
+    lv.style.background = p.lv_color;
+    chip.appendChild(lv);
+    chip.appendChild(document.createTextNode(p.name + " · " + p.grade + (p.core ? " ★" : "")));
+    if (p.succ) chip.title = "후임 지정: " + p.succ;
+    makeDraggable(chip, p.emp, p.level, null);
+    tray.appendChild(chip);
+  });
+  trayWrap.appendChild(tray);
+  makeDropTarget(trayWrap,
+    function (m) { return m.fromSlot !== null; },
+    function (m) { sendAction("tray", m.emp, null); });
+  root.appendChild(trayWrap);
+
+  var treeWrap = el("div", "tree");
+  var zoomWrap = el("div", "");
+  zoomWrap.id = "zoomwrap";
+  var rootUl = el("ul");
+  payload.tree.forEach(function (n) { rootUl.appendChild(buildNode(n, payload.track)); });
+  zoomWrap.appendChild(rootUl);
+  treeWrap.appendChild(zoomWrap);
+  root.appendChild(treeWrap);
+
+  applyZoom();  // 내부에서 setHeight() 호출
+}
+
+/* 드래그 중 트리 좌우 가장자리에 다가가면 자동 스크롤 (긴 조직도 이동 편의) */
+document.addEventListener("dragover", function (ev) {
+  if (!dragMeta) return;
+  var tree = document.querySelector(".tree");
+  if (!tree) return;
+  var r = tree.getBoundingClientRect();
+  var margin = 80, speed = 20;
+  if (ev.clientX < r.left + margin) tree.scrollLeft -= speed;
+  else if (ev.clientX > r.right - margin) tree.scrollLeft += speed;
+});
+
+window.addEventListener("message", function (e) {
+  if (e.data && e.data.type === "streamlit:render") {
+    /* 같은 payload면 DOM을 다시 만들지 않는다 — 호스트가 render를
+       재전송해도 진행 중인 드래그가 끊기지 않도록. */
+    var json = JSON.stringify(e.data.args.data);
+    if (json !== lastPayloadJson) {
+      lastPayloadJson = json;
+      render(e.data.args.data);
+    } else {
+      setHeight();
+    }
+  }
+});
+window.addEventListener("resize", function () { applyZoom(); });
+smsg("streamlit:componentReady", { apiVersion: 1 });
+</script>
+</body>
+</html>

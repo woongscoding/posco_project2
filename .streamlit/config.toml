@@ -1,0 +1,8 @@
+# 장표용 스크린샷 일관성: 보는 사람의 다크모드 설정과 무관하게
+# 항상 라이트(흰 배경) 테마로 고정한다. 조직도 카드(흰색)와도 자연스럽게 이어짐.
+[theme]
+base = "light"
+primaryColor = "#1565c0"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f7f9"
+textColor = "#263238"
