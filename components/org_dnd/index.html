@@ -3,13 +3,20 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root { --line: #b0bec5; }
+  /* POSCO 톤: 딥 네이비 #003C71 / 스카이 #00A0E9 / 쿨그레이 블루 라인 */
+  :root {
+    --line: #9FB3C8;
+    --navy: #003C71;
+    --sky: #00A0E9;
+    --blue-mid: #0072CE;
+    --bg-light: #EEF3F8;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: "Malgun Gothic", "NanumGothic", "Apple SD Gothic Neo", sans-serif;
-    background: #ffffff; color: #263238; padding: 2px;
+    background: #ffffff; color: #1A2B3C; padding: 2px;
   }
-  .hint { font-size: 11.5px; color: #90a4ae; margin: 0 0 8px 2px; }
+  .hint { font-size: 11.5px; color: #7C93A9; margin: 0 0 8px 2px; }
 
   /* ---- 툴바 (줌/전체화면) ---- */
   #toolbar {
@@ -19,30 +26,30 @@
   }
   #toolbar button {
     font-family: inherit; font-size: 12.5px; padding: 4px 10px;
-    border: 1.5px solid #b0bec5; border-radius: 8px; background: #fff;
-    cursor: pointer; color: #37474f;
+    border: 1.5px solid #9FB3C8; border-radius: 8px; background: #fff;
+    cursor: pointer; color: var(--navy);
   }
-  #toolbar button:hover { background: #eceff1; }
-  #toolbar button.active { border-color: #1565c0; color: #1565c0; font-weight: bold; }
-  #zoomlabel { font-size: 12px; color: #546e7a; min-width: 42px; text-align: center; }
+  #toolbar button:hover { background: var(--bg-light); }
+  #toolbar button.active { border-color: var(--blue-mid); color: var(--blue-mid); font-weight: bold; }
+  #zoomlabel { font-size: 12px; color: #4878A8; min-width: 42px; text-align: center; }
 
   :fullscreen { overflow: auto; background: #fff; }
   :fullscreen body { overflow: auto; }
 
   /* ---- 미배치 트레이 ---- */
   #tray-wrap {
-    border: 2px dashed #90a4ae; border-radius: 10px;
-    padding: 8px 10px; margin-bottom: 14px; background: #f5f7f9;
+    border: 2px dashed #8AA5BD; border-radius: 10px;
+    padding: 8px 10px; margin-bottom: 14px; background: var(--bg-light);
   }
-  #tray-wrap.over { border-color: #1565c0; background: #e3f2fd; }
-  #tray-title { font-size: 12px; font-weight: bold; color: #546e7a; margin-bottom: 6px; }
+  #tray-wrap.over { border-color: var(--blue-mid); background: #E1EEFA; }
+  #tray-title { font-size: 12px; font-weight: bold; color: var(--navy); margin-bottom: 6px; }
   #tray { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
   .chip {
     display: inline-flex; align-items: center; gap: 6px;
-    background: #fff; border: 1.5px solid #78909c; border-radius: 16px;
+    background: #fff; border: 1.5px solid #4878A8; border-radius: 16px;
     padding: 4px 10px; font-size: 13px; cursor: grab; user-select: none;
   }
-  .chip.succ { border-color: #1565c0; border-width: 2px; }
+  .chip.succ { border-color: var(--sky); border-width: 2px; }
   .chip.core { border-color: #6a1b9a; border-width: 2px; color: #6a1b9a; font-weight: bold; }
   .chip .lv { font-size: 10px; color: #fff; border-radius: 8px; padding: 1px 6px; }
   .chip:active { cursor: grabbing; }
@@ -76,32 +83,33 @@
 
   /* ---- 명함형 카드 ---- */
   .card {
-    width: 205px; background: #fff; border: 3px solid #37474f; border-radius: 10px;
-    overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,.08); text-align: left;
+    width: 205px; background: #fff; border: 3px solid #2C4A66; border-radius: 10px;
+    overflow: hidden; box-shadow: 0 2px 8px rgba(0,44,91,.14); text-align: left;
   }
   .card.vacant { border-style: dashed; }
-  .card.over { outline: 3px solid #1565c0; outline-offset: 2px; }
-  .candidate-target { outline: 3px dashed #66bb6a; outline-offset: 2px; }
-  #tray-wrap.candidate-target { border-color: #66bb6a; }
+  .card.over { outline: 3px solid var(--blue-mid); outline-offset: 2px;
+               box-shadow: 0 0 0 6px rgba(0,114,206,.15); }
+  .candidate-target { outline: 3px dashed var(--sky); outline-offset: 2px; }
+  #tray-wrap.candidate-target { border-color: var(--sky); }
   .strip { color: #fff; font-size: 12.5px; font-weight: bold; padding: 5px 9px; }
   .cbody { display: flex; gap: 8px; padding: 8px 9px 4px; align-items: center; border-radius: 6px; }
   .cbody.draggable { cursor: grab; }
-  .cbody.draggable:hover { background: #eceff1; }
+  .cbody.draggable:hover { background: #E8F1FA; }
   .avatar {
-    width: 40px; height: 40px; border-radius: 50%; background: #cfd8dc; flex: none;
+    width: 40px; height: 40px; border-radius: 50%; background: #D6E4F0; flex: none;
     display: flex; align-items: center; justify-content: center;
-    font-weight: bold; font-size: 17px;
+    font-weight: bold; font-size: 17px; color: var(--navy);
   }
-  .nm { font-size: 17px; font-weight: 800; }
-  .gr { font-size: 11.5px; color: #546e7a; margin-top: 1px; }
-  .path { font-size: 10.5px; color: #78909c; padding: 0 9px 6px; }
+  .nm { font-size: 17px; font-weight: 800; color: #12263A; }
+  .gr { font-size: 11.5px; color: #4878A8; margin-top: 1px; }
+  .path { font-size: 10.5px; color: #7C93A9; padding: 0 9px 6px; }
   .roster {
-    background: #f5f7f9; margin: 0 7px 7px; border-radius: 6px;
+    background: var(--bg-light); margin: 0 7px 7px; border-radius: 6px;
     padding: 5px 7px; display: flex; flex-direction: column; gap: 3px;
   }
   .rrow {
-    font-size: 12px; color: #455a64; padding: 2px 5px; border-radius: 4px;
-    background: #fff; border: 1px solid #eceff1; cursor: grab; user-select: none;
+    font-size: 12px; color: #35506B; padding: 2px 5px; border-radius: 4px;
+    background: #fff; border: 1px solid #DCE6F0; cursor: grab; user-select: none;
   }
   .rrow.core { color: #6a1b9a; font-weight: bold; border-color: #d1c4e9; }
   .rrow.vac { color: #c62828; font-weight: bold; cursor: default; background: transparent; border: 1px dashed #ef9a9a; }

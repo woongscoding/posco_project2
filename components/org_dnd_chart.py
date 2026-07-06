@@ -19,23 +19,25 @@ _component = components.declare_component(
     "org_dnd_chart", path=str(Path(__file__).parent / "org_dnd")
 )
 
-COLOR_FILLED = "#2e7d32"
-COLOR_VACANT = "#c62828"
-COLOR_SUCCESSOR_BORDER = "#1565c0"
-DEFAULT_BORDER = "#37474f"
-COLOR_TO_PARTIAL = "#ef6c00"
-COLOR_CORE_TALENT = "#6a1b9a"
+# POSCO 브랜드 톤: 딥 네이비(#003C71) 기조. 공석(빨강)·발탁(핑크) 등
+# 의미 색상은 식별을 위해 유지한다.
+COLOR_FILLED = "#003C71"            # 배치완료 카드 스트립 (POSCO 네이비)
+COLOR_VACANT = "#c62828"            # 공석 (빨강 유지 — 반드시 눈에 띄어야 함)
+COLOR_SUCCESSOR_BORDER = "#00A0E9"  # 후임확정 (스카이 블루)
+DEFAULT_BORDER = "#2C4A66"          # 카드 기본 테두리 (네이비 그레이)
+COLOR_TO_PARTIAL = "#F59E0B"        # TO 부분 충족 (앰버)
+COLOR_CORE_TALENT = "#6a1b9a"       # 핵심인재 (보라 유지 — 블루와 구분)
 
 BADGE_COLORS = {
-    "후임확정": "#1565c0",
-    "승진": "#ef6c00",
-    "신규보임": "#00838f",
-    "순환": "#8d6e63",
-    "★ IDP부합": "#f9a825",
+    "후임확정": "#00A0E9",
+    "승진": "#F57C00",
+    "신규보임": "#0072CE",
+    "순환": "#607D8B",
+    "★ IDP부합": "#F9A825",
     "발탁": "#d81b60",
 }
 
-LEVEL_CHIP_COLORS = {"임원": "#263238", "부장": "#37474f", "리더": "#546e7a", "직원": "#78909c"}
+LEVEL_CHIP_COLORS = {"임원": "#002B5B", "부장": "#1B4F8A", "리더": "#4878A8", "직원": "#7C9CBF"}
 LEVEL_RANK = {"임원": 3, "부장": 2, "리더": 1, "직원": 0}
 
 

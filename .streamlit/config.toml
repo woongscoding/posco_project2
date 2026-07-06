@@ -1,8 +1,8 @@
-# 장표용 스크린샷 일관성: 보는 사람의 다크모드 설정과 무관하게
-# 항상 라이트(흰 배경) 테마로 고정한다. 조직도 카드(흰색)와도 자연스럽게 이어짐.
+# POSCO 브랜드 톤(딥 블루) — 장표용 스크린샷 일관성을 위해 라이트 테마 고정.
+# 보는 사람의 다크모드 설정과 무관하게 항상 흰 배경 + 네이비 포인트로 렌더링.
 [theme]
 base = "light"
-primaryColor = "#1565c0"
+primaryColor = "#003C71"
 backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f5f7f9"
-textColor = "#263238"
+secondaryBackgroundColor = "#EEF3F8"
+textColor = "#1A2B3C"

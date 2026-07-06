@@ -80,8 +80,14 @@ def _init_session_state():
 
 
 def _render_header(data, slots, state, track):
-    st.title("맞춤형 인재 시뮬레이션 Agent")
-    st.caption("정기인사 배치 시뮬레이션 PoC · HR AX 프로젝트")
+    # POSCO 브랜드 톤: 네이비 타이틀 + 스카이 포인트 바
+    st.markdown(
+        "<div style='border-left:6px solid #00A0E9; padding-left:14px; margin-bottom:4px;'>"
+        "<h1 style='color:#003C71; margin:0; padding:0;'>맞춤형 인재 시뮬레이션 Agent</h1>"
+        "<p style='color:#4878A8; margin:2px 0 0 0; font-size:0.9rem;'>"
+        "정기인사 배치 시뮬레이션 PoC · HR AX 프로젝트</p></div>",
+        unsafe_allow_html=True,
+    )
 
     top_l, top_r = st.columns([3, 2])
     with top_l:
@@ -94,7 +100,7 @@ def _render_header(data, slots, state, track):
         )
     with top_r:
         st.markdown(
-            "<div style='text-align:right; padding-top:0.6rem; color:#888;'>"
+            "<div style='text-align:right; padding-top:0.6rem; color:#4878A8; font-weight:600;'>"
             "① 자동배치 → ② 챗봇 조정 → ③ 조직도에서 Drag&amp;Drop</div>",
             unsafe_allow_html=True,
         )
