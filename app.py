@@ -3,6 +3,9 @@
 Streamlit rerun 방어: 더미 데이터/슬롯/초기 배치 상태는 세션 최초 1회만
 생성하여 st.session_state에 저장하고, 이후에는 참조만 한다.
 """
+import base64
+from pathlib import Path
+
 import streamlit as st
 
 from components.candidate import render_candidate_panel
@@ -79,13 +82,45 @@ def _init_session_state():
         st.session_state["placement_rev"] = 0
 
 
-def _render_header(data, slots, state, track):
-    # POSCO 브랜드 톤: 네이비 타이틀 + 스카이 포인트 바
+@st.cache_data
+def _posco_logo_b64():
+    logo_path = Path(__file__).parent / "assets" / "posco_logo.svg"
+    return base64.b64encode(logo_path.read_bytes()).decode()
+
+
+def _render_metric_boxes(metrics):
+    """TO 지표를 POSCO 네이비 그라데이션 박스 카드로 표시 (장표용)."""
+    items = [
+        ("TO 충족률", f"{metrics['fill_rate']}%"),
+        ("공석 수", str(metrics["vacant"])),
+        ("배치 완료 수", str(metrics["filled"])),
+        ("전체 정원(TO)", str(metrics["total"])),
+    ]
+    boxes = "".join(
+        "<div style='flex:1; background:linear-gradient(135deg,#002B5B 0%,#0072CE 100%);"
+        " border-radius:12px; padding:14px 18px; box-shadow:0 3px 10px rgba(0,44,91,.22);'>"
+        f"<div style='color:#A9D2F2; font-size:0.82rem; font-weight:600;"
+        f" letter-spacing:.02em;'>{label}</div>"
+        f"<div style='color:#ffffff; font-size:1.9rem; font-weight:800;"
+        f" line-height:1.25;'>{value}</div></div>"
+        for label, value in items
+    )
     st.markdown(
-        "<div style='border-left:6px solid #00A0E9; padding-left:14px; margin-bottom:4px;'>"
-        "<h1 style='color:#003C71; margin:0; padding:0;'>맞춤형 인재 시뮬레이션 Agent</h1>"
-        "<p style='color:#4878A8; margin:2px 0 0 0; font-size:0.9rem;'>"
-        "정기인사 배치 시뮬레이션 PoC · HR AX 프로젝트</p></div>",
+        f"<div style='display:flex; gap:14px; margin:12px 0 6px;'>{boxes}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _render_header(data, slots, state, track):
+    # POSCO 공식 로고 + 네이비 타이틀 + 스카이 포인트 바
+    st.markdown(
+        "<div style='display:flex; align-items:center; gap:18px; margin-bottom:6px;'>"
+        f"<img src='data:image/svg+xml;base64,{_posco_logo_b64()}' style='height:34px;'/>"
+        "<div style='border-left:5px solid #00A0E9; padding-left:14px;'>"
+        "<h1 style='color:#003C71; margin:0; padding:0; font-size:1.9rem;'>"
+        "맞춤형 인재 시뮬레이션 Agent</h1>"
+        "<p style='color:#4878A8; margin:2px 0 0 0; font-size:0.88rem;'>"
+        "정기인사 배치 시뮬레이션 PoC · HR AX 프로젝트</p></div></div>",
         unsafe_allow_html=True,
     )
 
@@ -106,11 +141,7 @@ def _render_header(data, slots, state, track):
         )
 
     metrics = pl.summary_metrics(state, slots, track_display)
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("TO 충족률", f"{metrics['fill_rate']}%")
-    m2.metric("공석 수", metrics["vacant"])
-    m3.metric("배치 완료 수", metrics["filled"])
-    m4.metric("전체 정원(TO)", metrics["total"])
+    _render_metric_boxes(metrics)
 
     _render_version_bar(data, slots)
     st.divider()
