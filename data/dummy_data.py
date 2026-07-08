@@ -105,8 +105,9 @@ def _dept_head_title(dept_name):
 
 
 def _team_head_title(team_name):
+    # 팀장 대신 '리더' 호칭을 사용한다 (예: 인사기획리더)
     base = team_name.replace("담당", "")
-    return f"{base}팀장"
+    return f"{base}리더"
 
 
 def _div_head_title(div_name):

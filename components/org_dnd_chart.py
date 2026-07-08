@@ -108,11 +108,17 @@ def _profile_payload(slot, person, badges):
 
 
 def _tray_targets(person, slots, state, title_by_pos):
-    """미배치 인원의 추천 포지션 TOP3 (후임 지정 → 공석 → 적합도순)."""
+    """미배치 인원의 추천 포지션 TOP3 (후임 지정 → 공석 → 적합도순).
+    자동배치와 동일하게 같은 법인 포지션만 추천한다."""
+    p_corp = person.get("법인")
+
+    def same_corp(s):
+        return not p_corp or s.get("법인") in (p_corp, None, "-")
+
     if person["level"] == "직원":
         scored = []
         for s in slots:
-            if s["track"] != "A" or s["level"] != "리더":
+            if s["track"] != "A" or s["level"] != "리더" or not same_corp(s):
                 continue
             b_ids = [x["slot_id"] for x in slots
                      if x["track"] == "B" and x["position_id"] == s["position_id"]]
@@ -129,7 +135,7 @@ def _tray_targets(person, slots, state, title_by_pos):
                 "succ": person.get("후임") == s["position_id"],
             }
             for s in slots
-            if s["track"] == "A" and s["level"] == person["level"]
+            if s["track"] == "A" and s["level"] == person["level"] and same_corp(s)
         ]
     scored.sort(key=lambda x: (x["succ"], x["vacant"], x["score"]), reverse=True)
     return scored[:3]

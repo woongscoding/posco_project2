@@ -70,11 +70,13 @@ def eval_composite_score(row):
 
 
 def compute_core_talent_pool(people_df):
-    """부서명별 일반직원 상위 50%(평가 구성점수 기준) 직번 집합을 반환."""
+    """부서별 일반직원 상위 50%(평가 구성점수 기준) 직번 집합을 반환.
+    부서명이 법인 간 중복되므로 (법인, 부서명) 단위로 묶는다."""
     staff = people_df[people_df["level"] == "직원"].copy()
     staff["_score"] = staff.apply(eval_composite_score, axis=1)
+    group_keys = ["법인", "부서명"] if "법인" in staff.columns else ["부서명"]
     core_ids = set()
-    for dept, grp in staff.groupby("부서명"):
+    for _, grp in staff.groupby(group_keys):
         n = max(1, len(grp) // 2)
         top = grp.sort_values("_score", ascending=False).head(n)
         core_ids.update(top["직번"].tolist())
@@ -96,16 +98,17 @@ def init_state(slots, people_df):
                 occupant[slot_id] = p["직번"]
                 placed_emp_ids.add(p["직번"])
 
-    # Track B: 담당별 팀TO정원 중 이미 생성된 "직원" 인원을 순서대로 슬롯에 배치
+    # Track B: 담당별 팀TO정원 중 이미 생성된 "직원" 인원을 순서대로 슬롯에 배치.
+    # 담당(팀)명이 법인 간 중복되므로 (본부, 담당) 쌍으로 묶는다.
     staff_by_team = defaultdict(list)
     for _, p in people_df.iterrows():
         if p["level"] == "직원":
-            staff_by_team[p["담당"]].append(p["직번"])
+            staff_by_team[(p["본부"], p["담당"])].append(p["직번"])
 
     team_slots = defaultdict(list)
     for s in slots:
         if s["track"] == "B":
-            team_slots[s["담당"]].append(s["slot_id"])
+            team_slots[(s["본부"], s["담당"])].append(s["slot_id"])
 
     for team, emp_ids in staff_by_team.items():
         for slot_id, emp_id in zip(sorted(team_slots.get(team, [])), emp_ids):
@@ -124,12 +127,22 @@ def init_state(slots, people_df):
 def auto_place(state, people_df, fit_matrix, track, slots=None):
     """공석 슬롯 자동 채움. 우선순위: ①후임(successor) ②적합도 매트릭스 후보
     ③(트랙A) 동일 레벨 미배치 인원 중 적합도 최고 — 데모에서 조직도가
-    꽉 찬 스크린샷을 확보할 수 있도록 폴백까지 시도한다."""
+    꽉 찬 스크린샷을 확보할 수 있도록 폴백까지 시도한다.
+
+    법인 경계 유지: 자동배치는 슬롯과 같은 법인 소속 인원만 채운다.
+    (법인 간 교차 배치는 의도적 전출입이므로 수동 드래그로만 가능)"""
     occupant = dict(state["occupant"])
     unplaced = list(state["unplaced"])
     people_by_id = people_df.set_index("직번").to_dict("index")
     slot_by_id = {s["slot_id"]: s for s in (slots or [])}
     changes = []
+
+    def corp_ok(eid, slot_id):
+        slot = slot_by_id.get(slot_id)
+        slot_corp = slot.get("법인") if slot else None
+        if not slot_corp or slot_corp == "-":
+            return True  # 슬롯 정보가 없으면 제한하지 않음 (하위 호환)
+        return people_by_id.get(eid, {}).get("법인") == slot_corp
 
     if track == "A":
         vacant_slots = [sid for sid, occ in occupant.items() if occ is None and "::staff" not in sid]
@@ -137,19 +150,20 @@ def auto_place(state, people_df, fit_matrix, track, slots=None):
             candidate = None
             successors = [
                 eid for eid in people_df[people_df["후임"] == slot_id]["직번"].tolist()
-                if eid in unplaced
+                if eid in unplaced and corp_ok(eid, slot_id)
             ]
             if successors:
                 candidate = successors[0]
             if candidate is None:
                 scored = [(eid, score) for (pid, eid), score in fit_matrix.items()
-                          if pid == slot_id and eid in unplaced]
+                          if pid == slot_id and eid in unplaced and corp_ok(eid, slot_id)]
                 if scored:
                     candidate = max(scored, key=lambda x: x[1])[0]
             if candidate is None and slot_id in slot_by_id:
                 slot = slot_by_id[slot_id]
                 pool = [eid for eid in unplaced
-                        if people_by_id.get(eid, {}).get("level") == slot["level"]]
+                        if people_by_id.get(eid, {}).get("level") == slot["level"]
+                        and corp_ok(eid, slot_id)]
                 if pool:
                     candidate = max(pool, key=lambda eid: compute_fit_score(people_by_id[eid], slot))
             if candidate:
@@ -164,7 +178,10 @@ def auto_place(state, people_df, fit_matrix, track, slots=None):
         for slot_id in vacant_slots:
             if not available:
                 break
-            candidate = available.pop(0)
+            idx = next((i for i, eid in enumerate(available) if corp_ok(eid, slot_id)), None)
+            if idx is None:
+                continue  # 이 슬롯의 법인에 맞는 후보가 없음
+            candidate = available.pop(idx)
             occupant[slot_id] = candidate
             unplaced.remove(candidate)
             changes.append({"slot_id": slot_id, "emp_id": candidate, "action": "auto_place"})

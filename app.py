@@ -279,30 +279,47 @@ def _render_final_output(data, slots, state):
     st.subheader("📄 최종 배치 프로파일 산출물")
     st.caption("임원·부장·리더 및 일반직원 배치가 모두 확정되어 생성된 최종 배치안입니다.")
 
+    # 법인별 충족 현황 요약
+    corp_lines = []
+    for corp_name in sorted({s.get("법인") for s in slots if s.get("법인") and s.get("법인") != "-"}):
+        corp_slots = [s for s in slots if s.get("법인") == corp_name]
+        m_a = pl.summary_metrics(state, corp_slots, "A")
+        m_b = pl.summary_metrics(state, corp_slots, "B")
+        corp_lines.append(
+            f"**{corp_name}** — 임원·부장·리더 {m_a['filled']}/{m_a['total']}"
+            f" · 일반직원 {m_b['filled']}/{m_b['total']}"
+        )
+    if corp_lines:
+        st.markdown(" &nbsp;|&nbsp; ".join(corp_lines))
+
     rows_a, rows_b = [], []
     for s in slots:
         emp_id = state["occupant"].get(s["slot_id"])
         p = people_by_id.get(emp_id) if emp_id else None
         if s["track"] == "A":
             rows_a.append({
+                "법인": s.get("법인", "-"),
                 "본부": s["본부"], "부서명": s["부서명"], "직책": s["직책명"],
                 "성명": p["성명"] if p else "공석",
                 "직급": p["직급"] if p else "-",
+                "소속법인(개인)": p.get("법인", "-") if p else "-",
                 "적합도": compute_fit_score(p, s) if p else None,
                 "평가(25년)": p["25년평가"] if p else "-",
                 "보직의견": p.get("보직의견", "") if p else "-",
             })
         else:
             rows_b.append({
+                "법인": s.get("법인", "-"),
                 "본부": s["본부"], "담당(팀)": s["담당"],
                 "성명": p["성명"] if p else "공석",
                 "직급": p["직급"] if p else "-",
+                "소속법인(개인)": p.get("법인", "-") if p else "-",
                 "평가(25년)": p["25년평가"] if p else "-",
             })
 
     tab_a, tab_b = st.tabs(["임원 · 부장 · 리더", "일반직원"])
     with tab_a:
-        df_a = pd.DataFrame(rows_a)
+        df_a = pd.DataFrame(rows_a).sort_values(["법인", "본부", "부서명"], na_position="first")
         st.dataframe(df_a, width="stretch", hide_index=True)
         st.download_button(
             "⬇ 임원·부장·리더 배치안 다운로드 (CSV)",
@@ -310,7 +327,7 @@ def _render_final_output(data, slots, state):
             "최종배치_임원부장리더.csv", "text/csv",
         )
     with tab_b:
-        df_b = pd.DataFrame(rows_b)
+        df_b = pd.DataFrame(rows_b).sort_values(["법인", "본부", "담당(팀)"], na_position="first")
         st.dataframe(df_b, width="stretch", hide_index=True)
         st.download_button(
             "⬇ 일반직원 배치안 다운로드 (CSV)",
