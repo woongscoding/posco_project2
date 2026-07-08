@@ -46,8 +46,12 @@ EVAL_TREND_COLS = ["22년평가", "23년평가", "24년평가", "25년평가"]
 
 def _photo_url(person):
     """직번 기반 결정적 더미 증명사진 (무료 AI 생성 인물사진, randomuser.me).
-    같은 사람은 항상 같은 사진 — rerun에도 사진이 바뀌지 않는다."""
-    n = int("".join(ch for ch in str(person["직번"]) if ch.isdigit()) or 0)
+    같은 사람은 항상 같은 사진 — rerun에도 사진이 바뀌지 않는다.
+    (set_index로 직번이 빠진 dict도 들어오므로 성명 해시로 폴백)"""
+    key = str(person.get("직번") or "")
+    n = int("".join(ch for ch in key if ch.isdigit()) or 0)
+    if not n:
+        n = sum(ord(ch) for ch in str(person.get("성명", "")))
     gender = "men" if n % 2 else "women"
     return f"https://randomuser.me/api/portraits/{gender}/{(n * 7) % 99}.jpg"
 
@@ -220,7 +224,8 @@ def _card_payload(slot, person, emp_id, track, roster=None, to_fill=None, candid
 def build_org_payload(track, data, slots, state, core_talent_pool=None, scope="전체",
                       confirmed=None):
     """positions 계층(본부>부서>담당)을 컴포넌트용 트리 JSON으로 변환."""
-    people_by_id = data["people_df"].set_index("직번").to_dict("index")
+    # drop=False: 사진 URL 등에서 직번을 계속 쓸 수 있도록 컬럼을 유지한다
+    people_by_id = data["people_df"].set_index("직번", drop=False).to_dict("index")
     positions_df = data["positions_df"]
     core_talent_pool = core_talent_pool or set()
     confirmed = confirmed or {}
