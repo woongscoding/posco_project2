@@ -127,6 +127,18 @@
   }
   .tree > ul > li::before, .tree > ul > li::after { display: none; }
 
+  /* ---- 말단(리더) 계층은 세로로 쌓기 ----
+     가로로 12팀이 늘어서면 '화면 맞춤' 배율이 작아져 카드가 안 보인다.
+     말단만 세로 스택으로 바꾸면 전체 폭이 절반 이하로 줄어 배율이 커진다. */
+  .tree ul.vstack { flex-direction: column; align-items: center; }
+  .tree ul.vstack > li { padding: 12px 10px 0; }
+  .tree ul.vstack > li::before {
+    left: 50%; right: auto; top: 0; height: 12px; width: 0;
+    border-top: none; border-right: none; border-radius: 0;
+    border-left: 2px solid var(--line); display: block;
+  }
+  .tree ul.vstack > li::after { display: none; }
+
   /* ---- 명함형 카드 ---- */
   .card {
     width: 205px; background: #fff; border: 3px solid #2C4A66; border-radius: 10px;
@@ -469,6 +481,11 @@ function buildNode(node, track, depth) {
   li.appendChild(buildCard(node.card, track, depth || 0));
   if (node.children && node.children.length) {
     var ul = el("ul");
+    // 자식이 전부 말단이면 세로 스택 → 조직도 가로폭 축소(화면맞춤 배율↑)
+    var allLeaf = node.children.every(function (ch) {
+      return !ch.children || !ch.children.length;
+    });
+    if (allLeaf) ul.className = "vstack";
     node.children.forEach(function (ch) { ul.appendChild(buildNode(ch, track, (depth || 0) + 1)); });
     li.appendChild(ul);
   }

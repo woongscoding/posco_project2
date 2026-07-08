@@ -49,7 +49,11 @@ def _example_commands(data, slots):
                 break
     if not commands:
         commands.append("공석인 포지션에 적합한 후보를 배치해줘")
-    return commands[:2]
+    commands = commands[:2]
+    # 인사이트/조건부 배치(암묵지 조건) 예시 — 단순 이동 외 능력 시연용
+    commands.append("평가 하락 추세인 사람은 제외하고 공석을 채워줘")
+    commands.append("현재 배치안의 리스크를 분석해줘")
+    return commands
 
 
 def render_auto_place_button(data, slots, key="auto_place_all"):
@@ -75,12 +79,13 @@ def render_auto_place_button(data, slots, key="auto_place_all"):
 
 
 def _run_chat_command(command, data, slots):
-    """챗봇 명령 1건을 처리해 대화 히스토리에 결과를 남기고 rerun한다."""
+    """챗봇 명령/질문 1건을 처리해 대화 히스토리에 결과를 남기고 rerun한다.
+    이동 명령·조건부 배치(암묵지 조건)·인사이트 질문을 모두 지원한다."""
     history = st.session_state["chat_history"]
     history.append({"role": "user", "text": command})
 
-    with st.spinner("Claude가 배치안을 검토 중입니다..."):
-        actions, err = nlp_agent.get_move_actions(
+    with st.spinner("Claude가 검토 중입니다..."):
+        reply, actions, err = nlp_agent.ask_agent(
             command, st.session_state["placement"], data["people_df"], slots
         )
     if err:
@@ -88,6 +93,10 @@ def _run_chat_command(command, data, slots):
         st.rerun()
 
     valid_actions, warnings = nlp_agent.validate_actions(actions, data["people_df"], slots)
+
+    parts = []
+    if reply:
+        parts.append(reply)
 
     if valid_actions:
         people_by_id = data["people_df"].set_index("직번").to_dict("index")
@@ -99,14 +108,17 @@ def _run_chat_command(command, data, slots):
             name = people_by_id.get(va["emp_id"], {}).get("성명", va["emp_id"])
             title = slot_by_id.get(va["slot_id"], {}).get("직책명", va["slot_id"])
             lines.append(f"- **{name}** → {title}")
-        text = f"✅ {len(valid_actions)}건의 이동을 반영했습니다.\n" + "\n".join(lines)
-        if warnings:
-            text += "\n\n" + "\n".join(f"⚠️ {w}" for w in warnings)
-        history.append({"role": "assistant", "text": text})
+        parts.append(f"✅ {len(valid_actions)}건의 이동을 반영했습니다.\n" + "\n".join(lines))
         set_placement(state)
-    else:
-        text = "\n".join(f"⚠️ {w}" for w in warnings) or "수행할 이동이 없습니다."
-        history.append({"role": "assistant", "text": text})
+    elif actions and not valid_actions:
+        pass  # 전부 검증 탈락 → 경고만 표시
+    elif not reply:
+        parts.append("수행할 이동이 없습니다.")
+
+    if warnings:
+        parts.append("\n".join(f"⚠️ {w}" for w in warnings))
+
+    history.append({"role": "assistant", "text": "\n\n".join(parts) or "응답이 없습니다."})
     st.rerun()
 
 
@@ -125,7 +137,9 @@ def render_chat_panel(data, slots):
             with st.chat_message("assistant"):
                 st.markdown(
                     "안녕하세요, 인재 배치 어시스턴트입니다.\n\n"
-                    "원하시는 배치를 말씀해 주시면 조직도에 바로 반영해 드립니다."
+                    "이동 지시뿐 아니라 **조건을 건 배치**"
+                    "(예: 평가 하락자는 제외하고 공석 채우기)와 "
+                    "**배치안 분석·리스크 진단**도 도와드립니다."
                 )
         for msg in history:
             with st.chat_message(msg["role"]):
