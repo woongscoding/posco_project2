@@ -279,14 +279,16 @@ function fillTip(c) {
     });
     if (!(p.cands || []).length) body.appendChild(el("div", "pval", "추천 가능한 후보가 없습니다."));
   } else {
-    var fitrow = el("div", "fitrow");
-    var bar = el("div", "fitbar");
-    var fill = el("div", "fitfill");
-    fill.style.width = Math.max(0, Math.min(100, p.fit || 0)) + "%";
-    bar.appendChild(fill);
-    fitrow.appendChild(bar);
-    fitrow.appendChild(el("span", "fitnum", "적합도 " + (p.fit || 0) + "점"));
-    body.appendChild(fitrow);
+    if (typeof p.fit === "number") {
+      var fitrow = el("div", "fitrow");
+      var bar = el("div", "fitbar");
+      var fill = el("div", "fitfill");
+      fill.style.width = Math.max(0, Math.min(100, p.fit)) + "%";
+      bar.appendChild(fill);
+      fitrow.appendChild(bar);
+      fitrow.appendChild(el("span", "fitnum", "적합도 " + p.fit + "점"));
+      body.appendChild(fitrow);
+    }
 
     var grid = el("div", "pgrid");
     [["평가 추이 (22→25)", p.trend], ["다면평가 (24/25)", p.multi],
@@ -308,6 +310,19 @@ function fillTip(c) {
         rs.appendChild(line);
       });
       body.appendChild(rs);
+    }
+
+    /* 미배치 인원: 포지션별 적합도 TOP3 → 어디로 드래그할지 바로 판단 */
+    if (p.targets && p.targets.length) {
+      body.appendChild(el("div", "plabel", "적임자 Agent 추천 포지션 TOP " + p.targets.length));
+      p.targets.forEach(function (t) {
+        var row = el("div", "cand");
+        row.appendChild(el("span", "",
+          (t.succ ? "★ " : "") + t.title
+          + (t.succ ? " (후임지정)" : "") + (t.vacant ? " · 공석" : "")));
+        row.appendChild(el("span", "sc", "적합도 " + t.score + "점"));
+        body.appendChild(row);
+      });
     }
     if (p.bojik) {
       body.appendChild(el("div", "plabel", "보직의견"));
@@ -547,6 +562,20 @@ function render(payload) {
     chip.appendChild(document.createTextNode(p.name + " · " + p.grade + (p.core ? " ★" : "")));
     if (p.succ) chip.title = "후임 지정: " + p.succ;
     makeDraggable(chip, p.emp, p.level, null);
+    if (p.profile) {
+      // 카드와 동일한 팝업을 재사용 — 미배치 인원도 프로필+추천 포지션 표시
+      var pseudo = {
+        vacant: false,
+        name: p.name,
+        title: "미배치 · " + p.level + (p.core ? " (핵심인재)" : ""),
+        path: p.home || "",
+        profile: p.profile,
+      };
+      (function (chipEl, c) {
+        chipEl.addEventListener("mouseenter", function () { if (!dragMeta) showTip(chipEl, c); });
+        chipEl.addEventListener("mouseleave", hideTip);
+      })(chip, pseudo);
+    }
     tray.appendChild(chip);
   });
   trayWrap.appendChild(tray);
