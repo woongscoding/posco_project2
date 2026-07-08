@@ -169,14 +169,16 @@ def _vacant_candidates(people_df, state, slot):
 
 
 def _card_payload(slot, person, emp_id, track, roster=None, to_fill=None, candidates=None,
-                  locked=False):
+                  locked=False, gray=False):
+    """locked: 이동 잠금(확정된 트랙). gray: 회색 확정 표시 — 리더 카드는 팀(직원)
+    조직이 아직 미확정이면 회색으로 칠하지 않으므로 locked와 분리한다."""
     vacant = person is None
     badges = badges_for_person(person, slot["position_id"]) if person else []
     # 자기 레벨보다 높은 직책에 배치된 경우 → 발탁 배치 표시
     if person is not None and LEVEL_RANK.get(person["level"], 0) < LEVEL_RANK.get(slot["level"], 0):
         badges.append("발탁")
     badge_items = [{"text": b, "color": BADGE_COLORS.get(b, "#757575")} for b in badges]
-    if locked and person is not None:
+    if gray and person is not None:
         badge_items.insert(0, {"text": "✔ 확정", "color": "#616161"})
     if to_fill:
         filled, total = to_fill
@@ -191,8 +193,8 @@ def _card_payload(slot, person, emp_id, track, roster=None, to_fill=None, candid
     elif "후임확정" in badges:
         border = COLOR_SUCCESSOR_BORDER
 
-    # 확정된 임원·부장·리더는 회색 계열로 전환 (직원 로스터는 그대로 유지)
-    if locked and person is not None:
+    # 확정 표시 대상 카드만 회색 계열로 전환 (직원 로스터는 그대로 유지)
+    if gray and person is not None:
         border = "#9AA4AF"
 
     if person is not None:
@@ -210,7 +212,7 @@ def _card_payload(slot, person, emp_id, track, roster=None, to_fill=None, candid
         "sub": f"{person['직급']} · {slot['직책명']}" if person else slot["직책명"],
         "initial": person["성명"][-1] if person else "-",
         "path": " > ".join(p for p in [slot["본부"], slot["부서명"]] if isinstance(p, str) and p),
-        "strip": ("#6B7280" if locked else COLOR_FILLED) if person else COLOR_VACANT,
+        "strip": ("#6B7280" if gray else COLOR_FILLED) if person else COLOR_VACANT,
         "border": border,
         "vacant": vacant,
         "locked": locked,
@@ -229,7 +231,8 @@ def build_org_payload(track, data, slots, state, core_talent_pool=None, scope="�
     positions_df = data["positions_df"]
     core_talent_pool = core_talent_pool or set()
     confirmed = confirmed or {}
-    locked_a = bool(confirmed.get("A"))  # 임원·부장·리더 확정 → 카드 회색/이동 잠금
+    locked_a = bool(confirmed.get("A"))  # 임원·부장·리더 확정 → 이동 잠금
+    locked_b = bool(confirmed.get("B"))  # 일반직원 확정
     a_slots = {s["slot_id"]: s for s in slots if s["track"] == "A"}
     title_by_pos = {sid: s["직책명"] for sid, s in a_slots.items()}
 
@@ -267,11 +270,14 @@ def build_org_payload(track, data, slots, state, core_talent_pool=None, scope="�
             node_for(child_id)
             for child_id in positions_df[positions_df["parent_id"] == pos_id]["position_id"]
         ]
+        # 회색(확정) 표시: 임원·부장은 A 확정 시. 리더는 팀(직원) 조직이
+        # 아직 미확정이므로 B까지 확정된 뒤에야 회색으로 바꾼다.
+        gray = locked_a and (slot["level"] != "리더" or locked_b)
         return {
             "card": _card_payload(
                 slot, person, emp_id, track,
                 roster=roster, to_fill=to_fill, candidates=candidates,
-                locked=locked_a,
+                locked=locked_a, gray=gray,
             ),
             "children": children,
         }
