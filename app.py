@@ -24,7 +24,7 @@ from data.dummy_data import compute_fit_score, load_all_data
 from logic import placement as pl
 from logic import versioning as ver
 
-st.set_page_config(page_title="맞춤형 인재 시뮬레이션 Agent", layout="wide")
+st.set_page_config(page_title="정기인사 시뮬레이션 Agent", layout="wide")
 
 
 def _disable_browser_translate():
@@ -160,9 +160,7 @@ def _render_header(data, slots, state, track):
         f"<img src='data:image/svg+xml;base64,{_posco_logo_b64()}' style='height:34px;'/>"
         "<div style='border-left:5px solid #00A0E9; padding-left:14px;'>"
         "<h1 style='color:#003C71; margin:0; padding:0; font-size:1.9rem;'>"
-        "맞춤형 인재 시뮬레이션 Agent</h1>"
-        "<p style='color:#4878A8; margin:2px 0 0 0; font-size:0.88rem;'>"
-        "정기인사 배치 시뮬레이션 PoC · HR AX 프로젝트</p></div></div>",
+        "정기인사 시뮬레이션 Agent</h1></div></div>",
         unsafe_allow_html=True,
     )
 
