@@ -117,7 +117,7 @@ def _render_header(data, slots, state, track):
         unsafe_allow_html=True,
     )
 
-    top_l, top_m, top_r = st.columns([3, 3, 2])
+    top_l, top_r = st.columns([4, 1.2])
     with top_l:
         track_display = st.radio(
             "배치 대상 트랙",
@@ -126,13 +126,9 @@ def _render_header(data, slots, state, track):
             horizontal=True,
             key="track",
         )
-    with top_m:
-        st.markdown(
-            "<div style='text-align:right; padding-top:0.6rem; color:#4878A8; font-weight:600;'>"
-            "① 자동배치 → ② 챗봇 조정 → ③ 조직도에서 Drag&amp;Drop</div>",
-            unsafe_allow_html=True,
-        )
     with top_r:
+        # 라디오 라벨 높이만큼 내려 버튼을 옵션 행과 수평 정렬
+        st.markdown("<div style='padding-top:1.55rem;'></div>", unsafe_allow_html=True)
         render_auto_place_button(data, slots)
 
     metrics = pl.summary_metrics(state, slots, track_display)
@@ -224,7 +220,7 @@ def main():
 
     with chart_col:
         title_col, scope_col = st.columns([4, 1])
-        title_col.subheader("조직도 — Drag & Drop · 카드에 마우스를 올리면 추천이유")
+        title_col.subheader("조직 시뮬레이션")
         divisions = ["전체"] + sorted({s["본부"] for s in slots if s["track"] == "A"})
         scope = scope_col.selectbox(
             "표시 범위", divisions, key="org_scope", label_visibility="collapsed"

@@ -16,8 +16,6 @@
     font-family: "Malgun Gothic", "NanumGothic", "Apple SD Gothic Neo", sans-serif;
     background: #ffffff; color: #1A2B3C; padding: 2px;
   }
-  .hint { font-size: 11.5px; color: #7C93A9; margin: 0 0 8px 2px; }
-
   /* ---- 툴바 (줌/전체화면) ---- */
   #toolbar {
     display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
@@ -267,9 +265,6 @@ function fillTip(c) {
       body.appendChild(row);
     });
     if (!(p.cands || []).length) body.appendChild(el("div", "pval", "추천 가능한 후보가 없습니다."));
-    var hint = el("div", "reason");
-    hint.textContent = "미배치 트레이의 인물을 이 카드로 드래그하면 배치됩니다.";
-    body.appendChild(hint);
   } else {
     var fitrow = el("div", "fitrow");
     var bar = el("div", "fitbar");
@@ -517,10 +512,6 @@ function render(payload) {
   root.innerHTML = "";
 
   root.appendChild(buildToolbar());
-  root.appendChild(el("div", "hint",
-    payload.track === "A"
-      ? "카드 속 인물을 드래그해 아무 포지션 카드로나 이동(상위 직책 배치 시 '발탁' 표시) · 트레이로 끌면 배치 해제 · 점유된 자리는 기존 인원이 트레이로 밀려납니다"
-      : "팀원(카드 안 명단)이나 트레이 후보를 드래그해 팀장 카드에 놓으면 해당 팀으로 배치됩니다"));
 
   var trayWrap = el("div", "");
   trayWrap.id = "tray-wrap";

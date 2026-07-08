@@ -112,7 +112,7 @@ def _run_chat_command(command, data, slots):
 
 def render_chat_panel(data, slots):
     """우측 전용 챗봇: 조직도를 보면서 자연어로 배치를 조정하는 대화 UI."""
-    st.markdown("##### 💬 시뮬레이션 챗봇")
+    st.markdown("##### 💬 AI 배치 어시스턴트")
     chatbot_on = nlp_agent.is_chatbot_available()
     if not chatbot_on:
         st.caption("⚠️ Claude API 키가 설정되지 않아 챗봇이 비활성화되었습니다. (자동배치·D&D는 정상 동작)")
@@ -124,10 +124,8 @@ def render_chat_panel(data, slots):
         if not history:
             with st.chat_message("assistant"):
                 st.markdown(
-                    "조직도를 보면서 자연어로 배치를 지시하세요.\n\n"
-                    "예: *\"공석인 팀장 자리에 ○○○을 배치해줘\"*, "
-                    "*\"△△실장은 ○○○(으)로 교체해줘\"*\n\n"
-                    "임원/부장/리더 포지션(트랙 A)을 조정합니다."
+                    "안녕하세요, 인재 배치 어시스턴트입니다.\n\n"
+                    "원하시는 배치를 말씀해 주시면 조직도에 바로 반영해 드립니다."
                 )
         for msg in history:
             with st.chat_message(msg["role"]):
