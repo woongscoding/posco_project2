@@ -36,23 +36,71 @@
   :fullscreen { overflow: auto; background: #fff; }
   :fullscreen body { overflow: auto; }
 
-  /* ---- 미배치 트레이 ---- */
+  /* ---- 미배치 트레이 (슬림 바: 한 줄 + 가로 스크롤, 토글로 펼침) ---- */
   #tray-wrap {
-    border: 2px dashed #8AA5BD; border-radius: 10px;
-    padding: 8px 10px; margin-bottom: 14px; background: var(--bg-light);
+    display: flex; align-items: center; gap: 8px;
+    border: 1.5px dashed #8AA5BD; border-radius: 8px;
+    padding: 4px 8px; margin-bottom: 10px; background: var(--bg-light);
   }
   #tray-wrap.over { border-color: var(--blue-mid); background: #E1EEFA; }
-  #tray-title { font-size: 12px; font-weight: bold; color: var(--navy); margin-bottom: 6px; }
-  #tray { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
+  #tray-title {
+    font-size: 11.5px; font-weight: bold; color: var(--navy);
+    white-space: nowrap; flex: none;
+  }
+  #tray {
+    display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 5px;
+    min-height: 28px; align-items: center; flex: 1; padding-bottom: 2px;
+  }
+  #tray.expanded { flex-wrap: wrap; overflow-x: visible; }
+  #traytoggle {
+    flex: none; font-family: inherit; font-size: 11px; padding: 2px 8px;
+    border: 1px solid #9FB3C8; border-radius: 6px; background: #fff;
+    cursor: pointer; color: var(--navy); white-space: nowrap;
+  }
+  #traytoggle:hover { background: #E1EEFA; }
   .chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: #fff; border: 1.5px solid #4878A8; border-radius: 16px;
-    padding: 4px 10px; font-size: 13px; cursor: grab; user-select: none;
+    display: inline-flex; align-items: center; gap: 5px; flex: none;
+    background: #fff; border: 1.5px solid #4878A8; border-radius: 14px;
+    padding: 2px 8px; font-size: 11.5px; cursor: grab; user-select: none;
+    white-space: nowrap;
   }
   .chip.succ { border-color: var(--sky); border-width: 2px; }
   .chip.core { border-color: #6a1b9a; border-width: 2px; color: #6a1b9a; font-weight: bold; }
-  .chip .lv { font-size: 10px; color: #fff; border-radius: 8px; padding: 1px 6px; }
+  .chip .lv { font-size: 9.5px; color: #fff; border-radius: 8px; padding: 1px 5px; }
   .chip:active { cursor: grabbing; }
+
+  /* ---- 호버 프로필 팝업 (추천이유) ---- */
+  #ptip {
+    position: absolute; z-index: 1000; width: 308px; background: #fff;
+    border: 2px solid var(--navy); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 20, 50, .32); display: none;
+    text-align: left; pointer-events: none;
+  }
+  #ptip .ptip-head {
+    background: linear-gradient(135deg, #002B5B 0%, #0072CE 100%);
+    color: #fff; padding: 9px 12px;
+  }
+  #ptip .ptip-name { font-size: 15px; font-weight: 800; }
+  #ptip .ptip-sub { font-size: 11px; color: #BFDCF5; margin-top: 1px; }
+  #ptip .ptip-body { padding: 9px 12px 11px; }
+  #ptip .fitrow { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  #ptip .fitbar { flex: 1; height: 8px; background: #E1EAF4; border-radius: 4px; overflow: hidden; }
+  #ptip .fitfill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #00A0E9, #0072CE); }
+  #ptip .fitnum { font-size: 12px; font-weight: 800; color: var(--navy); white-space: nowrap; }
+  #ptip .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  #ptip .plabel { font-size: 10px; color: #7C93A9; margin-top: 7px; }
+  #ptip .pval { font-size: 12px; color: #243B53; }
+  #ptip .reason {
+    background: #F0F7FD; border-left: 3px solid var(--sky); border-radius: 0 6px 6px 0;
+    padding: 6px 8px; margin-top: 9px; font-size: 11.5px; color: #12406B; line-height: 1.45;
+  }
+  #ptip .reason b { color: var(--navy); }
+  #ptip .cand {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: #243B53; padding: 4px 6px; border-radius: 6px;
+    background: #F4F8FC; margin-top: 4px;
+  }
+  #ptip .cand .sc { font-weight: 800; color: var(--blue-mid); }
 
   /* ---- CSS 조직도 트리 (연결선) ---- */
   .tree { overflow-x: auto; padding: 4px 2px 14px; }
@@ -144,6 +192,7 @@ function setHeight() {
 var dragMeta = null;   // {emp, level, fromSlot}
 var seq = 0;
 var lastPayloadJson = null;
+var trayExpanded = false;  // 미배치 트레이 펼침 상태 (렌더 간 유지)
 
 /* ---- 줌: 기본은 '화면 맞춤'(가로로 긴 조직도가 한눈에 들어오게) ---- */
 var zoomMode = "fit";   // "fit" | "manual"
@@ -185,6 +234,122 @@ function el(tag, cls, text) {
   return e;
 }
 
+/* ---- 호버 프로필 팝업: 카드에 마우스를 올리면 프로필+추천이유 표시 ---- */
+var tipEl = null;
+function ensureTip() {
+  if (!tipEl) {
+    tipEl = el("div", "");
+    tipEl.id = "ptip";
+    document.body.appendChild(tipEl);
+  }
+  return tipEl;
+}
+
+function fillTip(c) {
+  var t = ensureTip();
+  t.innerHTML = "";
+  var p = c.profile || {};
+
+  var head = el("div", "ptip-head");
+  head.appendChild(el("div", "ptip-name", c.vacant ? "공석 — " + c.title : c.name + " · " + (p.grade || "")));
+  head.appendChild(el("div", "ptip-sub", c.vacant ? (c.path || "") : c.title + (c.path ? " · " + c.path : "")));
+  t.appendChild(head);
+
+  var body = el("div", "ptip-body");
+
+  if (c.vacant) {
+    body.appendChild(el("div", "plabel", "적임자 Agent 추천 후보 TOP " + ((p.cands || []).length || 0)));
+    (p.cands || []).forEach(function (cd) {
+      var row = el("div", "cand");
+      row.appendChild(el("span", "", (cd.succ ? "★ " : "") + cd.name + " · " + cd.grade + (cd.succ ? " (후임지정)" : "")));
+      var sc = el("span", "sc", cd.score + "점");
+      row.appendChild(sc);
+      body.appendChild(row);
+    });
+    if (!(p.cands || []).length) body.appendChild(el("div", "pval", "추천 가능한 후보가 없습니다."));
+    var hint = el("div", "reason");
+    hint.textContent = "미배치 트레이의 인물을 이 카드로 드래그하면 배치됩니다.";
+    body.appendChild(hint);
+  } else {
+    var fitrow = el("div", "fitrow");
+    var bar = el("div", "fitbar");
+    var fill = el("div", "fitfill");
+    fill.style.width = Math.max(0, Math.min(100, p.fit || 0)) + "%";
+    bar.appendChild(fill);
+    fitrow.appendChild(bar);
+    fitrow.appendChild(el("span", "fitnum", "적합도 " + (p.fit || 0) + "점"));
+    body.appendChild(fitrow);
+
+    var grid = el("div", "pgrid");
+    [["평가 추이 (22→25)", p.trend], ["다면평가 (24/25)", p.multi],
+     ["세션 (부장/임원)", p.sessions], ["경력", p.career],
+     ["출신교 · 전공", p.edu], ["연령", p.age]].forEach(function (kv) {
+      var cell = el("div", "");
+      cell.appendChild(el("div", "plabel", kv[0]));
+      cell.appendChild(el("div", "pval", kv[1] || "-"));
+      grid.appendChild(cell);
+    });
+    body.appendChild(grid);
+
+    if (p.reasons && p.reasons.length) {
+      var rs = el("div", "reason");
+      var bt = el("b", "", "추천이유");
+      rs.appendChild(bt);
+      p.reasons.forEach(function (r) {
+        var line = el("div", "", "· " + r);
+        rs.appendChild(line);
+      });
+      body.appendChild(rs);
+    }
+    if (p.bojik) {
+      body.appendChild(el("div", "plabel", "보직의견"));
+      body.appendChild(el("div", "pval", p.bojik));
+    }
+    if (p.hr) {
+      body.appendChild(el("div", "plabel", "HR검토의견"));
+      body.appendChild(el("div", "pval", p.hr));
+    }
+  }
+  t.appendChild(body);
+}
+
+function showTip(card, c) {
+  fillTip(c);
+  var t = ensureTip();
+  t.style.display = "block";
+  var r = card.getBoundingClientRect();
+  var sx = window.scrollX || document.documentElement.scrollLeft || 0;
+  var sy = window.scrollY || document.documentElement.scrollTop || 0;
+  var w = t.offsetWidth, h = t.offsetHeight;
+  var x = r.right + 10 + sx;
+  if (r.right + 10 + w > document.documentElement.clientWidth) x = r.left + sx - w - 10;
+  if (x < 4) x = 4;
+  var y = r.top + sy;
+  var rootRect = document.getElementById("root").getBoundingClientRect();
+  var maxY = rootRect.bottom + sy - h - 4;
+  if (y > maxY) y = Math.max(4, maxY);
+  t.style.left = x + "px";
+  t.style.top = y + "px";
+}
+
+function hideTip() { if (tipEl) tipEl.style.display = "none"; }
+
+/* ---- 위계 행 정렬: 같은 depth의 카드 높이를 통일해
+   부모 카드 높이 차이로 자식 행이 어긋나는 문제를 막는다 ---- */
+function alignRows() {
+  var byDepth = {};
+  document.querySelectorAll(".card").forEach(function (c) {
+    c.style.minHeight = "";
+    var d = c.dataset.depth || "0";
+    (byDepth[d] = byDepth[d] || []).push(c);
+  });
+  Object.keys(byDepth).forEach(function (d) {
+    var max = 0;
+    byDepth[d].forEach(function (c) { max = Math.max(max, c.offsetHeight); });
+    byDepth[d].forEach(function (c) { c.style.minHeight = max + "px"; });
+  });
+}
+
 function markCandidateTargets() {
   document.querySelectorAll("[data-droptarget='1']").forEach(function (n) {
     if (dragMeta && n._accepts && n._accepts(dragMeta)) n.classList.add("candidate-target");
@@ -206,6 +371,7 @@ function makeDraggable(node, emp, level, fromSlot) {
     ev.dataTransfer.setData("text/plain", emp);
     ev.dataTransfer.effectAllowed = "move";
     node.classList.add("dragging");
+    hideTip();  // 드래그 중에는 프로필 팝업 숨김
     markCandidateTargets();  // 놓을 수 있는 곳을 초록 점선으로 표시
   });
   node.addEventListener("dragend", function () {
@@ -235,12 +401,18 @@ function sendAction(action, emp, slot) {
   setValue({ id: Date.now() + "-" + seq, action: action, emp: emp, slot: slot || null });
 }
 
-function buildCard(c, track) {
+function buildCard(c, track, depth) {
   var card = el("div", "card");
   card.dataset.slot = c.slot_id;
   card.dataset.level = c.level;
+  card.dataset.depth = depth || 0;
   card.style.borderColor = c.border;
   if (c.vacant) card.classList.add("vacant");
+
+  if (c.profile) {
+    card.addEventListener("mouseenter", function () { if (!dragMeta) showTip(card, c); });
+    card.addEventListener("mouseleave", hideTip);
+  }
 
   var strip = el("div", "strip", c.title);
   strip.style.background = c.strip;
@@ -296,12 +468,12 @@ function buildCard(c, track) {
   return card;
 }
 
-function buildNode(node, track) {
+function buildNode(node, track, depth) {
   var li = el("li");
-  li.appendChild(buildCard(node.card, track));
+  li.appendChild(buildCard(node.card, track, depth || 0));
   if (node.children && node.children.length) {
     var ul = el("ul");
-    node.children.forEach(function (ch) { ul.appendChild(buildNode(ch, track)); });
+    node.children.forEach(function (ch) { ul.appendChild(buildNode(ch, track, (depth || 0) + 1)); });
     li.appendChild(ul);
   }
   return li;
@@ -352,11 +524,12 @@ function render(payload) {
 
   var trayWrap = el("div", "");
   trayWrap.id = "tray-wrap";
-  var title = el("div", "", "미배치 트레이 (" + payload.tray.length + "명)");
+  var title = el("div", "", "미배치 (" + payload.tray.length + ")");
   title.id = "tray-title";
   trayWrap.appendChild(title);
   var tray = el("div", "");
   tray.id = "tray";
+  if (trayExpanded) tray.classList.add("expanded");
   payload.tray.forEach(function (p) {
     var chip = el("div", "chip" + (p.succ ? " succ" : "") + (p.core ? " core" : ""));
     var lv = el("span", "lv", p.level);
@@ -368,6 +541,15 @@ function render(payload) {
     tray.appendChild(chip);
   });
   trayWrap.appendChild(tray);
+  var toggle = el("button", "", trayExpanded ? "▴ 접기" : "▾ 펼치기");
+  toggle.id = "traytoggle";
+  toggle.addEventListener("click", function () {
+    trayExpanded = !trayExpanded;
+    tray.classList.toggle("expanded", trayExpanded);
+    toggle.textContent = trayExpanded ? "▴ 접기" : "▾ 펼치기";
+    setHeight();
+  });
+  trayWrap.appendChild(toggle);
   makeDropTarget(trayWrap,
     function (m) { return m.fromSlot !== null; },
     function (m) { sendAction("tray", m.emp, null); });
@@ -377,11 +559,13 @@ function render(payload) {
   var zoomWrap = el("div", "");
   zoomWrap.id = "zoomwrap";
   var rootUl = el("ul");
-  payload.tree.forEach(function (n) { rootUl.appendChild(buildNode(n, payload.track)); });
+  payload.tree.forEach(function (n) { rootUl.appendChild(buildNode(n, payload.track, 0)); });
   zoomWrap.appendChild(rootUl);
   treeWrap.appendChild(zoomWrap);
   root.appendChild(treeWrap);
 
+  hideTip();    // 이전 렌더의 팝업 잔상 제거
+  alignRows();  // 같은 위계의 카드 높이 통일 → 행 어긋남 방지
   applyZoom();  // 내부에서 setHeight() 호출
 }
 

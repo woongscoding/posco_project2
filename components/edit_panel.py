@@ -1,7 +1,8 @@
-"""편집 패널: ① 자동배치 버튼 ② 챗봇(Claude API).
+"""편집 패널: 챗봇(Claude API) 대화 UI + 자동배치 버튼(헤더용).
 
-③ Drag&Drop은 조직도 컴포넌트(components/org_dnd_chart.py)에서 직접 수행한다
-— 조직도 카드 위에 드래그해 배치하는 방식(분리형 sortables 리스트 제거).
+우측 컬럼은 챗봇 전용이다 — 조직도를 보면서 대화로 배치를 조정한다.
+자동배치 버튼은 render_auto_place_button()으로 분리되어 헤더에 놓인다.
+후보 추천근거는 조직도 카드 호버 팝업(org_dnd/index.html)으로 이동했다.
 
 모든 조작은 st.session_state["placement"] (단일 source of truth)를 갱신하고,
 갱신 시 즉시 st.rerun()하여 조직도가 다시 그려지도록 한다.
@@ -51,11 +52,10 @@ def _example_commands(data, slots):
     return commands[:2]
 
 
-def render_auto_place_section(track, data, slots):
-    st.markdown("##### ① 자동배치")
-    st.caption("한 번에 두 트랙(임원·부장·리더 + 일반직원)의 모든 공석을 채웁니다.")
-    if st.button("전체 자동배치 — 모든 공석 채우기", key="auto_place_all",
-                 type="primary", width="stretch"):
+def render_auto_place_button(data, slots, key="auto_place_all"):
+    """전체 자동배치 버튼 (헤더 배치용, 두 트랙 공석 일괄 채움)."""
+    if st.button("⚡ 전체 자동배치", key=key, type="primary", width="stretch",
+                 help="임원·부장·리더 + 일반직원 두 트랙의 모든 공석을 한 번에 채웁니다."):
         state = st.session_state["placement"]
         state_a, changes_a = pl.auto_place(
             state, data["people_df"], data["fit_matrix"], "A", slots=slots
@@ -74,12 +74,64 @@ def render_auto_place_section(track, data, slots):
         st.rerun()
 
 
-def render_chatbot_section(data, slots):
-    st.markdown("##### ② 사용자 질의배치 (챗봇)")
+def _run_chat_command(command, data, slots):
+    """챗봇 명령 1건을 처리해 대화 히스토리에 결과를 남기고 rerun한다."""
+    history = st.session_state["chat_history"]
+    history.append({"role": "user", "text": command})
+
+    with st.spinner("Claude가 배치안을 검토 중입니다..."):
+        actions, err = nlp_agent.get_move_actions(
+            command, st.session_state["placement"], data["people_df"], slots
+        )
+    if err:
+        history.append({"role": "assistant", "text": f"⚠️ {err}"})
+        st.rerun()
+
+    valid_actions, warnings = nlp_agent.validate_actions(actions, data["people_df"], slots)
+
+    if valid_actions:
+        people_by_id = data["people_df"].set_index("직번").to_dict("index")
+        slot_by_id = {s["slot_id"]: s for s in slots}
+        state = st.session_state["placement"]
+        lines = []
+        for va in valid_actions:
+            state, _ = pl.move_person(state, va["emp_id"], va["slot_id"])
+            name = people_by_id.get(va["emp_id"], {}).get("성명", va["emp_id"])
+            title = slot_by_id.get(va["slot_id"], {}).get("직책명", va["slot_id"])
+            lines.append(f"- **{name}** → {title}")
+        text = f"✅ {len(valid_actions)}건의 이동을 반영했습니다.\n" + "\n".join(lines)
+        if warnings:
+            text += "\n\n" + "\n".join(f"⚠️ {w}" for w in warnings)
+        history.append({"role": "assistant", "text": text})
+        set_placement(state)
+    else:
+        text = "\n".join(f"⚠️ {w}" for w in warnings) or "수행할 이동이 없습니다."
+        history.append({"role": "assistant", "text": text})
+    st.rerun()
+
+
+def render_chat_panel(data, slots):
+    """우측 전용 챗봇: 조직도를 보면서 자연어로 배치를 조정하는 대화 UI."""
+    st.markdown("##### 💬 시뮬레이션 챗봇")
     chatbot_on = nlp_agent.is_chatbot_available()
     if not chatbot_on:
         st.caption("⚠️ Claude API 키가 설정되지 않아 챗봇이 비활성화되었습니다. (자동배치·D&D는 정상 동작)")
-    st.caption("챗봇은 임원/부장/리더 포지션(트랙 A)을 조정합니다.")
+
+    history = st.session_state.setdefault("chat_history", [])
+
+    chat_box = st.container(height=430)
+    with chat_box:
+        if not history:
+            with st.chat_message("assistant"):
+                st.markdown(
+                    "조직도를 보면서 자연어로 배치를 지시하세요.\n\n"
+                    "예: *\"공석인 팀장 자리에 ○○○을 배치해줘\"*, "
+                    "*\"△△실장은 ○○○(으)로 교체해줘\"*\n\n"
+                    "임원/부장/리더 포지션(트랙 A)을 조정합니다."
+                )
+        for msg in history:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["text"])
 
     example_commands = _example_commands(data, slots)
     example_clicked = None
@@ -88,42 +140,15 @@ def render_chatbot_section(data, slots):
             example_clicked = cmd
 
     with st.form(key="chat_command_form", clear_on_submit=True):
-        user_command = st.text_input(
-            "이동 명령을 입력하세요",
-            placeholder=f"예: {example_commands[0]}",
+        in_col, btn_col = st.columns([4, 1])
+        user_command = in_col.text_input(
+            "이동 명령",
+            placeholder="이동 명령을 입력하세요",
+            label_visibility="collapsed",
             disabled=not chatbot_on,
         )
-        submitted = st.form_submit_button("전송", disabled=not chatbot_on)
+        submitted = btn_col.form_submit_button("전송", disabled=not chatbot_on)
 
-    command_to_run = example_clicked or (user_command if submitted else None)
-
-    if command_to_run:
-        with st.spinner("Claude가 배치안을 검토 중입니다..."):
-            actions, err = nlp_agent.get_move_actions(
-                command_to_run, st.session_state["placement"], data["people_df"], slots
-            )
-        if err:
-            st.warning(err)
-            return
-
-        valid_actions, warnings = nlp_agent.validate_actions(actions, data["people_df"], slots)
-
-        if valid_actions:
-            state = st.session_state["placement"]
-            for va in valid_actions:
-                state, _ = pl.move_person(state, va["emp_id"], va["slot_id"])
-            flash = [("toast", f"{len(valid_actions)}건의 이동을 반영했습니다.")]
-            flash += [("warning", w) for w in warnings]
-            set_placement(state, flash)
-            st.rerun()
-        else:
-            for w in warnings:
-                st.warning(w)
-            if not warnings:
-                st.info("수행할 이동이 없습니다.")
-
-
-def render_edit_panel(track, data, slots):
-    render_auto_place_section(track, data, slots)
-    st.divider()
-    render_chatbot_section(data, slots)
+    command = example_clicked or (user_command.strip() if submitted and user_command else None)
+    if command:
+        _run_chat_command(command, data, slots)

@@ -8,8 +8,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from components.candidate import render_candidate_panel
-from components.edit_panel import render_edit_panel
+from components.edit_panel import render_auto_place_button, render_chat_panel
 from components.org_dnd_chart import (
     build_org_payload,
     handle_org_event,
@@ -88,25 +87,19 @@ def _posco_logo_b64():
     return base64.b64encode(logo_path.read_bytes()).decode()
 
 
-def _render_metric_boxes(metrics):
-    """TO 지표를 POSCO 네이비 그라데이션 박스 카드로 표시 (장표용)."""
-    items = [
-        ("TO 충족률", f"{metrics['fill_rate']}%"),
-        ("공석 수", str(metrics["vacant"])),
-        ("배치 완료 수", str(metrics["filled"])),
-        ("전체 정원(TO)", str(metrics["total"])),
-    ]
-    boxes = "".join(
-        "<div style='flex:1; background:linear-gradient(135deg,#002B5B 0%,#0072CE 100%);"
-        " border-radius:12px; padding:14px 18px; box-shadow:0 3px 10px rgba(0,44,91,.22);'>"
-        f"<div style='color:#A9D2F2; font-size:0.82rem; font-weight:600;"
-        f" letter-spacing:.02em;'>{label}</div>"
-        f"<div style='color:#ffffff; font-size:1.9rem; font-weight:800;"
-        f" line-height:1.25;'>{value}</div></div>"
-        for label, value in items
-    )
+def _render_floating_to_badge(metrics, track):
+    """공석/TO 지표를 스크롤을 따라다니는 작은 고정 배지로 표시.
+    (큰 지표 카드 대신 — 조직도 공간을 지표가 차지하지 않도록)"""
+    track_label = "임원·부장·리더" if track == "A" else "일반직원"
     st.markdown(
-        f"<div style='display:flex; gap:14px; margin:12px 0 6px;'>{boxes}</div>",
+        "<div style='position:fixed; right:22px; bottom:22px; z-index:9999;"
+        " background:linear-gradient(135deg,#002B5B 0%,#0072CE 100%); color:#fff;"
+        " border-radius:14px; padding:9px 16px; box-shadow:0 6px 18px rgba(0,44,91,.38);"
+        " font-size:0.83rem; line-height:1.55; opacity:.96; pointer-events:none;'>"
+        f"<span style='color:#A9D2F2; font-weight:600;'>{track_label}</span><br/>"
+        f"공석 <b style='color:#FFD54F; font-size:1.05rem;'>{metrics['vacant']}</b>명"
+        f" · TO {metrics['filled']}/{metrics['total']}"
+        f" (충족률 {metrics['fill_rate']}%)</div>",
         unsafe_allow_html=True,
     )
 
@@ -124,7 +117,7 @@ def _render_header(data, slots, state, track):
         unsafe_allow_html=True,
     )
 
-    top_l, top_r = st.columns([3, 2])
+    top_l, top_m, top_r = st.columns([3, 3, 2])
     with top_l:
         track_display = st.radio(
             "배치 대상 트랙",
@@ -133,18 +126,19 @@ def _render_header(data, slots, state, track):
             horizontal=True,
             key="track",
         )
-    with top_r:
+    with top_m:
         st.markdown(
             "<div style='text-align:right; padding-top:0.6rem; color:#4878A8; font-weight:600;'>"
             "① 자동배치 → ② 챗봇 조정 → ③ 조직도에서 Drag&amp;Drop</div>",
             unsafe_allow_html=True,
         )
+    with top_r:
+        render_auto_place_button(data, slots)
 
     metrics = pl.summary_metrics(state, slots, track_display)
-    _render_metric_boxes(metrics)
+    _render_floating_to_badge(metrics, track_display)
 
     _render_version_bar(data, slots)
-    st.divider()
     return track_display
 
 
@@ -224,12 +218,13 @@ def main():
     if track == "B":
         core_talent_pool = pl.compute_core_talent_pool(data["people_df"])
 
-    # 좌: 큰 조직도(카드에서 직접 Drag&Drop) / 우: 편집 컨트롤 + 후보 추천근거
-    chart_col, side_col = st.columns([7, 3], gap="medium")
+    # 좌: 큰 조직도(카드에서 직접 Drag&Drop, 호버 시 프로필+추천이유 팝업)
+    # 우: 챗봇 전용 — 조직도를 보면서 대화로 배치 조정
+    chart_col, side_col = st.columns([7, 2], gap="medium")
 
     with chart_col:
-        title_col, scope_col = st.columns([3, 1])
-        title_col.subheader("조직도 — 카드에서 바로 Drag & Drop")
+        title_col, scope_col = st.columns([4, 1])
+        title_col.subheader("조직도 — Drag & Drop · 카드에 마우스를 올리면 추천이유")
         divisions = ["전체"] + sorted({s["본부"] for s in slots if s["track"] == "A"})
         scope = scope_col.selectbox(
             "표시 범위", divisions, key="org_scope", label_visibility="collapsed"
@@ -239,9 +234,7 @@ def main():
         handle_org_event(event, data, slots)
 
     with side_col:
-        render_edit_panel(track, data, slots)
-        st.divider()
-        render_candidate_panel(track, data, slots, state)
+        render_chat_panel(data, slots)
 
 
 if __name__ == "__main__":
