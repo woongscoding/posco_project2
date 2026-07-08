@@ -16,33 +16,25 @@ REFERENCE_DATE = date(2026, 7, 6)  # 데모 기준일 (고정값, datetime.now()
 # ---------------------------------------------------------------------------
 # 조직 트리 정의 (본부 > 부서명 > 담당)
 # ---------------------------------------------------------------------------
-# 법인별 조직 트리: 홀딩스(지주사)와 포스코(사업회사)가 서로 다른 조직/인력을 가진다.
-# 법인 필터 선택 시 해당 법인의 조직도와 인재 풀만 표시된다.
+# 본부 구성은 두 법인이 동일하다 (클라이언트 명시 3개 본부만 사용).
+# 본부명에 "홀딩스_"/"포스코_" 접두어를 붙여 법인을 마킹해 표시한다.
+_BASE_DIVS = {
+    "경영지원본부": {
+        "인사실": ["인사기획담당", "인재개발담당"],
+        "재무실": ["재무기획담당", "자금담당"],
+    },
+    "그룹DX전략실": {
+        "DX기획부": ["DX기획담당", "DX거버넌스담당"],
+        "데이터플랫폼부": ["데이터기획담당", "AI서비스담당"],
+    },
+    "미래전략본부": {
+        "전략기획실": ["전략1담당", "전략2담당"],
+        "미래사업부": ["신사업개발담당", "투자전략담당"],
+    },
+}
 ORG_TREES = {
-    "홀딩스": {
-        "경영지원본부": {
-            "인사실": ["인사기획담당", "인재개발담당"],
-            "재무실": ["재무기획담당", "자금담당"],
-        },
-        "그룹DX전략실": {
-            "DX기획부": ["DX기획담당", "DX거버넌스담당"],
-            "데이터플랫폼부": ["데이터기획담당", "AI서비스담당"],
-        },
-        "미래전략본부": {
-            "전략기획실": ["전략1담당", "전략2담당"],
-            "미래사업부": ["신사업개발담당", "투자전략담당"],
-        },
-    },
-    "포스코": {
-        "생산기술본부": {
-            "생산1부": ["생산1담당", "생산2담당"],
-            "기술연구소": ["연구1담당", "연구2담당"],
-        },
-        "마케팅본부": {
-            "마케팅1부": ["마케팅1담당", "마케팅2담당"],
-            "영업기획부": ["영업1담당", "영업2담당"],
-        },
-    },
+    corp: {f"{corp}_{div}": depts for div, depts in _BASE_DIVS.items()}
+    for corp in ("홀딩스", "포스코")
 }
 CORP_LIST = list(ORG_TREES)
 DIV_CORP = {div: corp for corp, tree in ORG_TREES.items() for div in tree}
@@ -118,7 +110,8 @@ def _team_head_title(team_name):
 
 
 def _div_head_title(div_name):
-    return div_name + "장"
+    # 본부명의 법인 접두어("홀딩스_" 등)는 직책명에서 제외한다
+    return div_name.split("_")[-1] + "장"
 
 
 # ---------------------------------------------------------------------------
@@ -391,14 +384,14 @@ def generate_people(rng, positions_df):
             emp_seq += 1
             staff_seq += 1
 
-    # 부서명별 여유 핵심인재 pool (특정 담당에 소속되지 않은 채 회사 전체 공석에 추천되는 후보)
-    dept_names = sorted({pos["부서명"] for pos in pos_rows if pos["level"] == "리더"})
-    dept_home_div = {pos["부서명"]: pos["본부"] for pos in pos_rows if pos["level"] == "리더"}
-    for dept in dept_names:
+    # 부서별 여유 핵심인재 pool (특정 담당에 소속되지 않은 채 회사 전체 공석에 추천되는 후보)
+    # 부서명이 법인 간 중복되므로 (본부, 부서명) 쌍으로 순회한다
+    dept_pairs = sorted({(pos["본부"], pos["부서명"]) for pos in pos_rows if pos["level"] == "리더"})
+    for div, dept in dept_pairs:
         for _ in range(rng.randint(2, 4)):
             name = f"직원{staff_seq:03d}"
             row = _make_person(
-                rng, emp_seq, "직원", name, dept_home_div[dept], dept, None,
+                rng, emp_seq, "직원", name, div, dept, None,
                 current_position_id=None, current_title="-",
                 담당부장="-",
             )

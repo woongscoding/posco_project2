@@ -297,9 +297,9 @@ def build_org_payload(track, data, slots, state, core_talent_pool=None, scope="�
             continue
         if corp != "전체" and p.get("법인") != corp:
             continue  # 법인 필터: 선택한 법인 소속 후보만 트레이에 표시
+        # 본부명에 법인 접두어("홀딩스_" 등)가 포함되므로 법인을 따로 붙이지 않는다
         home = " · ".join(
-            str(v) for v in (p.get("법인"), p.get("본부"), p.get("부서명"))
-            if isinstance(v, str) and v
+            str(v) for v in (p.get("본부"), p.get("부서명")) if isinstance(v, str) and v
         )
         if track == "A" and p["level"] in ("임원", "부장", "리더"):
             succ = p.get("후임")
