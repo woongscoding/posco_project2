@@ -96,10 +96,12 @@ def _posco_logo_b64():
     return base64.b64encode(logo_path.read_bytes()).decode()
 
 
-def _render_floating_to_badge(metrics, track):
+def _render_floating_to_badge(metrics, track, corp="전체"):
     """공석/TO 지표를 스크롤을 따라다니는 작은 고정 배지로 표시.
     (큰 지표 카드 대신 — 조직도 공간을 지표가 차지하지 않도록)"""
-    track_label = "임원·부장·리더" if track == "A" else "일반직원"
+    track_label = ("" if corp == "전체" else f"{corp} · ") + (
+        "임원·부장·리더" if track == "A" else "일반직원"
+    )
     st.markdown(
         "<div style='position:fixed; right:22px; bottom:22px; z-index:9999;"
         " background:linear-gradient(135deg,#002B5B 0%,#0072CE 100%); color:#fff;"
@@ -173,7 +175,7 @@ def _render_header(data, slots, state, track):
             options=["전체", "홀딩스", "포스코"],
             horizontal=True,
             key="corp_filter",
-            help="미배치 후보 인재를 소속 법인 기준으로 필터링합니다.",
+            help="선택한 법인의 조직도와 후보 인재 풀만 표시합니다.",
         )
     with top_l:
         track_display = st.radio(
@@ -198,8 +200,10 @@ def _render_header(data, slots, state, track):
         st.markdown(_align, unsafe_allow_html=True)
         render_clear_all_button(data, slots)
 
-    metrics = pl.summary_metrics(state, slots, track_display)
-    _render_floating_to_badge(metrics, track_display)
+    corp = st.session_state.get("corp_filter", "전체")
+    metric_slots = [s for s in slots if corp == "전체" or s.get("법인") == corp]
+    metrics = pl.summary_metrics(state, metric_slots, track_display)
+    _render_floating_to_badge(metrics, track_display, corp)
 
     _render_version_bar(data, slots)
     return track_display
@@ -336,14 +340,20 @@ def main():
     with chart_col:
         title_col, scope_col = st.columns([4, 1])
         title_col.subheader("조직 시뮬레이션")
-        divisions = ["전체"] + sorted({s["본부"] for s in slots if s["track"] == "A"})
+        corp = st.session_state.get("corp_filter", "전체")
+        divisions = ["전체"] + sorted({
+            s["본부"] for s in slots
+            if s["track"] == "A" and (corp == "전체" or s.get("법인") == corp)
+        })
+        # 법인 전환으로 이전 선택 본부가 목록에서 사라지면 '전체'로 되돌린다
+        if st.session_state.get("org_scope") not in divisions:
+            st.session_state["org_scope"] = "전체"
         scope = scope_col.selectbox(
             "표시 범위", divisions, key="org_scope", label_visibility="collapsed"
         )
         payload = build_org_payload(
             track, data, slots, state, core_talent_pool, scope,
-            confirmed=st.session_state["confirmed"],
-            corp=st.session_state.get("corp_filter", "전체"),
+            confirmed=st.session_state["confirmed"], corp=corp,
         )
         event = render_org_dnd_chart(payload, key="org_dnd")
         handle_org_event(event, data, slots)

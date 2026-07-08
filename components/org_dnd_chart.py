@@ -284,6 +284,8 @@ def build_org_payload(track, data, slots, state, core_talent_pool=None, scope="�
         }
 
     roots = positions_df[positions_df["parent_id"].isna()]
+    if corp != "전체" and "법인" in positions_df.columns:
+        roots = roots[roots["법인"] == corp]  # 법인 필터: 해당 법인 조직도만 표시
     if scope != "전체":
         roots = roots[roots["본부"] == scope]
     tree = [node_for(pid) for pid in roots["position_id"]]
@@ -316,9 +318,12 @@ def build_org_payload(track, data, slots, state, core_talent_pool=None, scope="�
                 "profile": _tray_profile(p, slots, state, title_by_pos),
             })
 
-    # 전체화면에서도 TO 현황이 보이도록 지표를 컴포넌트에 함께 전달
-    metrics = pl.summary_metrics(state, slots, track)
-    metrics["label"] = "임원·부장·리더" if track == "A" else "일반직원"
+    # 전체화면에서도 TO 현황이 보이도록 지표를 컴포넌트에 함께 전달 (법인 필터 반영)
+    metric_slots = [s for s in slots if corp == "전체" or s.get("법인") == corp]
+    metrics = pl.summary_metrics(state, metric_slots, track)
+    metrics["label"] = ("" if corp == "전체" else f"{corp} · ") + (
+        "임원·부장·리더" if track == "A" else "일반직원"
+    )
 
     return {"track": track, "tree": tree, "tray": tray, "metrics": metrics,
             "confirmed": {"A": locked_a, "B": bool(confirmed.get("B"))}}

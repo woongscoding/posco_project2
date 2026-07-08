@@ -16,23 +16,39 @@ REFERENCE_DATE = date(2026, 7, 6)  # 데모 기준일 (고정값, datetime.now()
 # ---------------------------------------------------------------------------
 # 조직 트리 정의 (본부 > 부서명 > 담당)
 # ---------------------------------------------------------------------------
-ORG_TREE = {
-    "경영지원본부": {
-        "전략기획실": ["전략1담당", "전략2담당"],
-        "인사실": ["인사기획담당", "인재개발담당"],
+# 법인별 조직 트리: 홀딩스(지주사)와 포스코(사업회사)가 서로 다른 조직/인력을 가진다.
+# 법인 필터 선택 시 해당 법인의 조직도와 인재 풀만 표시된다.
+ORG_TREES = {
+    "홀딩스": {
+        "경영지원본부": {
+            "인사실": ["인사기획담당", "인재개발담당"],
+            "재무실": ["재무기획담당", "자금담당"],
+        },
+        "그룹DX전략실": {
+            "DX기획부": ["DX기획담당", "DX거버넌스담당"],
+            "데이터플랫폼부": ["데이터기획담당", "AI서비스담당"],
+        },
+        "미래전략본부": {
+            "전략기획실": ["전략1담당", "전략2담당"],
+            "미래사업부": ["신사업개발담당", "투자전략담당"],
+        },
     },
-    "그룹DX전략실": {
-        "생산1부": ["생산1담당", "생산2담당"],
-        "기술연구소": ["연구1담당", "연구2담당"],
-    },
-    "미래전략본부": {
-        "마케팅1부": ["마케팅1담당", "마케팅2담당"],
-        "영업기획부": ["영업1담당", "영업2담당"],
+    "포스코": {
+        "생산기술본부": {
+            "생산1부": ["생산1담당", "생산2담당"],
+            "기술연구소": ["연구1담당", "연구2담당"],
+        },
+        "마케팅본부": {
+            "마케팅1부": ["마케팅1담당", "마케팅2담당"],
+            "영업기획부": ["영업1담당", "영업2담당"],
+        },
     },
 }
+CORP_LIST = list(ORG_TREES)
+DIV_CORP = {div: corp for corp, tree in ORG_TREES.items() for div in tree}
 
-# 후보 인재의 소속 법인 (법인 필터용): 지주사(홀딩스) / 사업회사(포스코)
-CORP_LIST = ["홀딩스", "포스코"]
+# 하위 호환: 전체 본부 → 부서 트리 (법인 구분 없이 합친 뷰)
+ORG_TREE = {div: depts for tree in ORG_TREES.values() for div, depts in tree.items()}
 
 EVAL_GRADES = ["S", "A+", "A", "B+", "B", "C"]
 EVAL_WEIGHTS = [5, 12, 28, 28, 20, 7]
@@ -110,45 +126,51 @@ def _div_head_title(div_name):
 # ---------------------------------------------------------------------------
 def build_positions(rng):
     positions = []
-    for div_idx, (div_name, depts) in enumerate(ORG_TREE.items()):
-        div_id = f"P-DIV-{div_idx}"
-        positions.append({
-            "position_id": div_id,
-            "level": "임원",
-            "본부": div_name,
-            "부서명": None,
-            "담당": None,
-            "직책명": _div_head_title(div_name),
-            "TO정원": 1,
-            "parent_id": None,
-            "팀TO정원": None,
-        })
-        for dept_idx, (dept_name, teams) in enumerate(depts.items()):
-            dept_id = f"P-DEPT-{div_idx}-{dept_idx}"
+    div_idx = 0
+    for corp, tree in ORG_TREES.items():
+        for div_name, depts in tree.items():
+            div_id = f"P-DIV-{div_idx}"
             positions.append({
-                "position_id": dept_id,
-                "level": "부장",
+                "position_id": div_id,
+                "level": "임원",
+                "법인": corp,
                 "본부": div_name,
-                "부서명": dept_name,
+                "부서명": None,
                 "담당": None,
-                "직책명": _dept_head_title(dept_name),
+                "직책명": _div_head_title(div_name),
                 "TO정원": 1,
-                "parent_id": div_id,
+                "parent_id": None,
                 "팀TO정원": None,
             })
-            for team_idx, team_name in enumerate(teams):
-                team_id = f"P-TEAM-{div_idx}-{dept_idx}-{team_idx}"
+            for dept_idx, (dept_name, teams) in enumerate(depts.items()):
+                dept_id = f"P-DEPT-{div_idx}-{dept_idx}"
                 positions.append({
-                    "position_id": team_id,
-                    "level": "리더",
+                    "position_id": dept_id,
+                    "level": "부장",
+                    "법인": corp,
                     "본부": div_name,
                     "부서명": dept_name,
-                    "담당": team_name,
-                    "직책명": _team_head_title(team_name),
+                    "담당": None,
+                    "직책명": _dept_head_title(dept_name),
                     "TO정원": 1,
-                    "parent_id": dept_id,
-                    "팀TO정원": rng.randint(5, 8),
+                    "parent_id": div_id,
+                    "팀TO정원": None,
                 })
+                for team_idx, team_name in enumerate(teams):
+                    team_id = f"P-TEAM-{div_idx}-{dept_idx}-{team_idx}"
+                    positions.append({
+                        "position_id": team_id,
+                        "level": "리더",
+                        "법인": corp,
+                        "본부": div_name,
+                        "부서명": dept_name,
+                        "담당": team_name,
+                        "직책명": _team_head_title(team_name),
+                        "TO정원": 1,
+                        "parent_id": dept_id,
+                        "팀TO정원": rng.randint(5, 8),
+                    })
+            div_idx += 1
     return pd.DataFrame(positions)
 
 
@@ -237,9 +259,9 @@ def _make_person(rng, emp_seq, level, name, home_div, home_dept, home_team,
         "25다면평가": multi_years["25다면평가"],
         "24다면평가": multi_years["24다면평가"],
         "보직의견": rng.choice(BOJIK_OPINIONS),
-        "사업회사": home_div,
-        "법인": _weighted_choice(rng, CORP_LIST, [6, 4]),
-        "지주사": "N",  # 아래에서 법인 기준으로 재설정
+        "사업회사": DIV_CORP.get(home_div, CORP_LIST[0]),
+        "법인": DIV_CORP.get(home_div, CORP_LIST[0]),  # 소속 본부의 법인을 따른다
+        "지주사": "Y" if DIV_CORP.get(home_div) == "홀딩스" else "N",
         "순환": _weighted_choice(rng, ["Y", "N"], [2, 8]),
         "신규전입": _weighted_choice(rng, ["Y", "N"], [15, 85]) if level != "직원" else "N",
         "조직개편안_25년": current_position_id or "-",
@@ -253,7 +275,6 @@ def _make_person(rng, emp_seq, level, name, home_div, home_dept, home_team,
         "current_position_id": current_position_id,
         "level": level,
     }
-    row["지주사"] = "Y" if row["법인"] == "홀딩스" else "N"
     return row
 
 
@@ -301,7 +322,8 @@ def generate_people(rng, positions_df):
             if succ_from_same_org:
                 s_div, s_dept, s_team = div, dept, team
             else:
-                other_div = rng.choice(list(ORG_TREE.keys()))
+                # 후임은 같은 법인 내 다른 본부에서 온다
+                other_div = rng.choice(list(ORG_TREES[DIV_CORP[div]].keys()))
                 s_div = other_div
                 s_dept, s_team = None, None
             succ_name = next_name(level)
@@ -313,9 +335,9 @@ def generate_people(rng, positions_df):
             people.append(succ_row)
             emp_seq += 1
 
-        # 여유 pool 후보 (동일 레벨의 대체 후보, 약 40% 확률)
+        # 여유 pool 후보 (동일 레벨의 대체 후보, 약 40% 확률, 같은 법인 소속)
         if rng.random() < 0.4:
-            other_div = rng.choice(list(ORG_TREE.keys()))
+            other_div = rng.choice(list(ORG_TREES[DIV_CORP[div]].keys()))
             pool_name = next_name(level)
             pool_row = _make_person(
                 rng, emp_seq, level, pool_name, other_div, None, None,
@@ -344,7 +366,7 @@ def generate_people(rng, positions_df):
         for _ in range(max(0, vacant_count + 1 - unplaced_count)):
             extra_row = _make_person(
                 rng, emp_seq, level, next_name(level),
-                rng.choice(list(ORG_TREE.keys())), None, None,
+                rng.choice(list(DIV_CORP.keys())), None, None,
                 current_position_id=None, current_title="-", 담당부장="-",
             )
             people.append(extra_row)
