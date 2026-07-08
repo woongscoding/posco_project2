@@ -51,25 +51,53 @@ def _example_commands(data, slots):
     return commands[:2]
 
 
+_TRACK_LABEL = {"A": "임원·부장·리더", "B": "일반직원"}
+
+
+def _run_auto_place(data, slots, tracks):
+    """지정한 트랙들의 공석을 자동으로 채운다. 확정된 트랙은 건드리지 않는다."""
+    confirmed = st.session_state.get("confirmed", {})
+    tracks = [t for t in tracks if not confirmed.get(t)]
+    state = st.session_state["placement"]
+    counts = {}
+    for t in tracks:
+        state, changes = pl.auto_place(state, data["people_df"], data["fit_matrix"], t, slots=slots)
+        counts[t] = len(changes)
+    total = sum(counts.values())
+    if total:
+        detail = ", ".join(f"{_TRACK_LABEL[t]} {n}건" for t, n in counts.items())
+        set_placement(state, [("toast", f"{total}건 자동 배치 완료 ({detail})")])
+    else:
+        st.session_state.setdefault("flash", []).append(("info", "추가로 배치할 공석/후보가 없습니다."))
+    st.rerun()
+
+
+def render_track_auto_place_button(data, slots, track):
+    """현재 트랙 전용 자동배치 버튼 (임원 자동배치 / 직원 자동배치)."""
+    confirmed = st.session_state.get("confirmed", {})
+    label = "임원 자동배치" if track == "A" else "직원 자동배치"
+    if st.button(f"⚡ {label}", key="auto_place_track", type="primary", width="stretch",
+                 disabled=confirmed.get(track, False),
+                 help=f"{_TRACK_LABEL[track]} 트랙의 공석만 자동으로 채웁니다."):
+        _run_auto_place(data, slots, [track])
+
+
 def render_auto_place_button(data, slots, key="auto_place_all"):
-    """전체 자동배치 버튼 (헤더 배치용, 두 트랙 공석 일괄 채움)."""
-    if st.button("⚡ 전체 자동배치", key=key, type="primary", width="stretch",
+    """전체 자동배치 버튼 (두 트랙 공석 일괄 채움, 확정된 트랙은 제외)."""
+    confirmed = st.session_state.get("confirmed", {})
+    if st.button("⚡ 전체 자동배치", key=key, width="stretch",
+                 disabled=confirmed.get("A", False) and confirmed.get("B", False),
                  help="임원·부장·리더 + 일반직원 두 트랙의 모든 공석을 한 번에 채웁니다."):
-        state = st.session_state["placement"]
-        state_a, changes_a = pl.auto_place(
-            state, data["people_df"], data["fit_matrix"], "A", slots=slots
-        )
-        state_b, changes_b = pl.auto_place(
-            state_a, data["people_df"], data["fit_matrix"], "B", slots=slots
-        )
-        total = len(changes_a) + len(changes_b)
-        if total:
-            set_placement(state_b, [(
-                "toast",
-                f"{total}건 자동 배치 완료 (임원·부장·리더 {len(changes_a)}건, 일반직원 {len(changes_b)}건)",
-            )])
-        else:
-            st.session_state.setdefault("flash", []).append(("info", "추가로 배치할 공석/후보가 없습니다."))
+        _run_auto_place(data, slots, ["A", "B"])
+
+
+def render_clear_all_button(data, slots, key="clear_all"):
+    """전체 공석화 버튼: 배치 전원을 미배치 트레이로 되돌리고 확정 상태도 초기화."""
+    if st.button("🗑 전체 공석화", key=key, width="stretch",
+                 help="모든 슬롯을 공석으로 되돌리고 전원을 미배치 트레이로 보냅니다. 확정 상태도 초기화됩니다."):
+        new_state = pl.clear_all_placements(st.session_state["placement"])
+        st.session_state["confirmed"] = {"A": False, "B": False}
+        set_placement(new_state, [("toast", "전체 인원을 공석(미배치)으로 되돌렸습니다.")])
         st.rerun()
 
 

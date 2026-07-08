@@ -220,6 +220,16 @@ def move_to_team(state, emp_id, team_position_id, slots):
     return move_person(state, emp_id, target_slot)
 
 
+def clear_all_placements(state):
+    """모든 슬롯을 공석으로 되돌리고 배치돼 있던 전원을 미배치 트레이로 보낸다."""
+    occupant = {sid: None for sid in state["occupant"]}
+    unplaced = list(state["unplaced"])
+    for occ in state["occupant"].values():
+        if occ and occ not in unplaced:
+            unplaced.append(occ)
+    return {"occupant": occupant, "unplaced": unplaced}
+
+
 def remove_to_tray(state, emp_id):
     """특정 인원을 현재 슬롯에서 빼내 미배치 트레이로 보낸다."""
     occupant = dict(state["occupant"])

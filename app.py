@@ -9,7 +9,12 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from components.edit_panel import render_auto_place_button, render_chat_panel
+from components.edit_panel import (
+    render_auto_place_button,
+    render_chat_panel,
+    render_clear_all_button,
+    render_track_auto_place_button,
+)
 from components.org_dnd_chart import (
     build_org_payload,
     handle_org_event,
@@ -161,7 +166,7 @@ def _render_header(data, slots, state, track):
         unsafe_allow_html=True,
     )
 
-    top_l, top_m, top_r = st.columns([3.2, 1.2, 1.2])
+    top_l, btn_track, btn_all, btn_confirm, btn_clear = st.columns([2.4, 1.05, 1.05, 1.05, 1.05])
     with top_l:
         track_display = st.radio(
             "배치 대상 트랙",
@@ -170,13 +175,20 @@ def _render_header(data, slots, state, track):
             horizontal=True,
             key="track",
         )
-    with top_m:
-        # 라디오 라벨 높이만큼 내려 버튼을 옵션 행과 수평 정렬
-        st.markdown("<div style='padding-top:1.55rem;'></div>", unsafe_allow_html=True)
+    # 라디오 라벨 높이만큼 내려 버튼들을 옵션 행과 수평 정렬
+    _align = "<div style='padding-top:1.55rem;'></div>"
+    with btn_track:
+        st.markdown(_align, unsafe_allow_html=True)
+        render_track_auto_place_button(data, slots, track_display)
+    with btn_all:
+        st.markdown(_align, unsafe_allow_html=True)
         render_auto_place_button(data, slots)
-    with top_r:
-        st.markdown("<div style='padding-top:1.55rem;'></div>", unsafe_allow_html=True)
+    with btn_confirm:
+        st.markdown(_align, unsafe_allow_html=True)
         _render_confirm_button(track_display)
+    with btn_clear:
+        st.markdown(_align, unsafe_allow_html=True)
+        render_clear_all_button(data, slots)
 
     metrics = pl.summary_metrics(state, slots, track_display)
     _render_floating_to_badge(metrics, track_display)
