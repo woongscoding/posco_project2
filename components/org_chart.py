@@ -31,7 +31,6 @@ BADGE_COLORS = {
     "승진": "#ef6c00",
     "신규보임": "#00838f",
     "순환": "#8d6e63",
-    "★ IDP부합": "#f9a825",
     "핵심인재": COLOR_CORE_TALENT,
 }
 

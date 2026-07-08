@@ -1,16 +1,21 @@
-"""편집 패널: 챗봇(Claude API) 대화 UI + 자동배치 버튼(헤더용).
+"""편집 패널: P-GPT 챗봇(Claude API) 대화 UI + 자동배치 버튼(헤더용).
 
-우측 컬럼은 챗봇 전용이다 — 조직도를 보면서 대화로 배치를 조정한다.
+우측 컬럼은 P-GPT 전용이다 — 조직도를 보면서 대화로 배치를 조정한다.
 자동배치 버튼은 render_auto_place_button()으로 분리되어 헤더에 놓인다.
 후보 추천근거는 조직도 카드 호버 팝업(org_dnd/index.html)으로 이동했다.
 
 모든 조작은 st.session_state["placement"] (단일 source of truth)를 갱신하고,
 갱신 시 즉시 st.rerun()하여 조직도가 다시 그려지도록 한다.
 """
+from pathlib import Path
+
 import streamlit as st
 
 from logic import nlp_agent
 from logic import placement as pl
+
+# 챗봇 아바타: 파란 원 + 흰색 P (POSCO P-GPT 브랜딩)
+_PGPT_AVATAR = str(Path(__file__).parent.parent / "assets" / "pgpt_avatar.svg")
 
 
 def set_placement(new_state, flash_msgs=None):
@@ -39,21 +44,11 @@ def _example_commands(data, slots):
         if state["occupant"].get(s["slot_id"]) is None and unplaced_by_level.get(s["level"]):
             commands.append(f"공석인 {s['직책명']} 자리에 {unplaced_by_level[s['level']][0]}을(를) 배치해줘")
             break
-    for s in a_slots:  # 교체 예시
-        occ = state["occupant"].get(s["slot_id"])
-        if occ:
-            occ_name = people_by_id[occ]["성명"]
-            others = [n for n in unplaced_by_level.get(s["level"], []) if n != occ_name]
-            if others:
-                commands.append(f"{s['직책명']}은 {occ_name} 대신 {others[0]}(으)로 교체해줘")
-                break
     if not commands:
         commands.append("공석인 포지션에 적합한 후보를 배치해줘")
-    commands = commands[:2]
-    # 인사이트/조건부 배치(암묵지 조건) 예시 — 단순 이동 외 능력 시연용
-    commands.append("평가 하락 추세인 사람은 제외하고 공석을 채워줘")
+    # 인사이트 예시 — 단순 이동 외 능력 시연용. 추천 문구는 총 2개만 노출한다.
     commands.append("현재 배치안의 리스크를 분석해줘")
-    return commands
+    return commands[:2]
 
 
 def render_auto_place_button(data, slots, key="auto_place_all"):
@@ -84,7 +79,7 @@ def _run_chat_command(command, data, slots):
     history = st.session_state["chat_history"]
     history.append({"role": "user", "text": command})
 
-    with st.spinner("Claude가 검토 중입니다..."):
+    with st.spinner("P-GPT가 검토 중입니다..."):
         reply, actions, err = nlp_agent.ask_agent(
             command, st.session_state["placement"], data["people_df"], slots
         )
@@ -122,27 +117,54 @@ def _run_chat_command(command, data, slots):
     st.rerun()
 
 
+# 실제 대화가 시작되기 전 채팅창을 채우는 목업 대화 (스크롤 동작 확인용)
+_MOCK_CHAT = [
+    ("user", "공석인 포지션 현황 알려줘"),
+    ("assistant",
+     "현재 임원·부장·리더 트랙의 공석 현황을 확인했습니다. "
+     "조직도에서 빨간 점선 카드가 공석 포지션이며, 카드에 마우스를 올리면 "
+     "적임자 Agent가 추천하는 후보 TOP3와 적합도 점수를 바로 확인할 수 있습니다."),
+    ("user", "평가 하락 추세인 사람은 제외하고 배치해줘"),
+    ("assistant",
+     "네, 최근 4개년 평가가 하락 추세인 인원을 제외한 배치안을 구성할 수 있습니다. "
+     "조건을 확정해 주시면 해당 조건으로 공석을 채우고 결과를 요약해 드리겠습니다."),
+]
+
+
 def render_chat_panel(data, slots):
-    """우측 전용 챗봇: 조직도를 보면서 자연어로 배치를 조정하는 대화 UI."""
-    st.markdown("##### 💬 AI 배치 어시스턴트")
+    """우측 전용 P-GPT 챗봇: 조직도를 보면서 자연어로 배치를 조정하는 대화 UI."""
+    st.markdown(
+        "<div style='display:flex; align-items:center; gap:8px; margin-bottom:4px;'>"
+        "<span style='display:inline-flex; width:26px; height:26px; border-radius:50%;"
+        " background:#0072CE; color:#fff; font-weight:800; align-items:center;"
+        " justify-content:center; font-size:15px;'>P</span>"
+        "<span style='font-size:1.05rem; font-weight:700; color:#003C71;'>P-GPT</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
     chatbot_on = nlp_agent.is_chatbot_available()
     if not chatbot_on:
-        st.caption("⚠️ Claude API 키가 설정되지 않아 챗봇이 비활성화되었습니다. (자동배치·D&D는 정상 동작)")
+        st.caption("⚠️ API 키가 설정되지 않아 P-GPT가 비활성화되었습니다. (자동배치·D&D는 정상 동작)")
 
     history = st.session_state.setdefault("chat_history", [])
 
-    chat_box = st.container(height=430)
+    chat_box = st.container(height=420)
     with chat_box:
+        with st.chat_message("assistant", avatar=_PGPT_AVATAR):
+            st.markdown(
+                "안녕하세요, **P-GPT**입니다.\n\n"
+                "이동 지시뿐 아니라 **조건을 건 배치**"
+                "(예: 평가 하락자는 제외하고 공석 채우기)와 "
+                "**배치안 분석·리스크 진단**도 도와드립니다."
+            )
         if not history:
-            with st.chat_message("assistant"):
-                st.markdown(
-                    "안녕하세요, 인재 배치 어시스턴트입니다.\n\n"
-                    "이동 지시뿐 아니라 **조건을 건 배치**"
-                    "(예: 평가 하락자는 제외하고 공석 채우기)와 "
-                    "**배치안 분석·리스크 진단**도 도와드립니다."
-                )
+            # 목업 대화 — 실제 대화가 시작되면 사라진다
+            for role, text in _MOCK_CHAT:
+                with st.chat_message(role, avatar=_PGPT_AVATAR if role == "assistant" else None):
+                    st.markdown(text)
         for msg in history:
-            with st.chat_message(msg["role"]):
+            avatar = _PGPT_AVATAR if msg["role"] == "assistant" else None
+            with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["text"])
 
     example_commands = _example_commands(data, slots)
@@ -151,15 +173,18 @@ def render_chat_panel(data, slots):
         if st.button(cmd, key=f"example_cmd::{i}", width="stretch", disabled=not chatbot_on):
             example_clicked = cmd
 
+    # 카카오톡형 입력창: 넓은 멀티라인 입력 + 아래 전송 버튼
     with st.form(key="chat_command_form", clear_on_submit=True):
-        in_col, btn_col = st.columns([4, 1])
-        user_command = in_col.text_input(
-            "이동 명령",
-            placeholder="이동 명령을 입력하세요",
+        user_command = st.text_area(
+            "메시지 입력",
+            placeholder="P-GPT에게 메시지를 입력하세요…",
+            height=80,
             label_visibility="collapsed",
             disabled=not chatbot_on,
         )
-        submitted = btn_col.form_submit_button("전송", disabled=not chatbot_on)
+        submitted = st.form_submit_button(
+            "전송 ➤", type="primary", width="stretch", disabled=not chatbot_on
+        )
 
     command = example_clicked or (user_command.strip() if submitted and user_command else None)
     if command:

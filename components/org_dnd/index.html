@@ -77,6 +77,11 @@
   #ptip .ptip-head {
     background: linear-gradient(135deg, #002B5B 0%, #0072CE 100%);
     color: #fff; padding: 9px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #ptip .ptip-photo {
+    width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex: none;
+    border: 2px solid rgba(255,255,255,.75); background: #D6E4F0;
   }
   #ptip .ptip-name { font-size: 15px; font-weight: 800; }
   #ptip .ptip-sub { font-size: 11px; color: #BFDCF5; margin-top: 1px; }
@@ -100,17 +105,84 @@
   }
   #ptip .cand .sc { font-weight: 800; color: var(--blue-mid); }
 
+  /* ---- 클릭 비교: 선택 표시 + 안내 토스트 + 비교 오버레이 ---- */
+  .cmp-selected { outline: 3px solid #F9A825 !important; outline-offset: 2px; border-radius: 8px; }
+  #cmphint {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px;
+    background: #003C71; color: #fff; padding: 8px 16px; border-radius: 20px;
+    font-size: 12.5px; z-index: 1200; display: none;
+    box-shadow: 0 6px 18px rgba(0, 20, 50, .35); white-space: nowrap;
+  }
+  #cmp {
+    position: fixed; inset: 0; background: rgba(8, 24, 44, .5); z-index: 1500;
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 26px 12px; overflow: auto;
+  }
+  #cmp.open { display: flex; }
+  #cmp .cmp-panel {
+    background: #fff; border-radius: 14px; max-width: 720px; width: 100%;
+    box-shadow: 0 18px 48px rgba(0, 15, 40, .45); overflow: hidden;
+  }
+  #cmp .cmp-head {
+    background: linear-gradient(135deg, #002B5B 0%, #0072CE 100%); color: #fff;
+    padding: 11px 16px; display: flex; justify-content: space-between; align-items: center;
+  }
+  #cmp .cmp-title { font-weight: 800; font-size: 14.5px; }
+  #cmp .cmp-close {
+    background: rgba(255,255,255,.16); border: none; color: #fff; font-size: 12.5px;
+    border-radius: 8px; padding: 5px 12px; cursor: pointer; font-family: inherit;
+  }
+  #cmp .cmp-close:hover { background: rgba(255,255,255,.3); }
+  #cmp .cmp-body { display: grid; grid-template-columns: 1fr 1fr; }
+  #cmp .cmp-col { padding: 14px 16px; }
+  #cmp .cmp-col + .cmp-col { border-left: 1.5px solid #E1EAF4; }
+  #cmp .cmp-photo {
+    width: 66px; height: 66px; border-radius: 50%; object-fit: cover;
+    border: 2.5px solid var(--blue-mid); background: #D6E4F0; display: block;
+  }
+  #cmp .cmp-name { font-size: 16px; font-weight: 800; color: #12263A; margin-top: 8px; }
+  #cmp .cmp-pos { font-size: 11.5px; color: #4878A8; margin-top: 1px; }
+  #cmp .cmp-win {
+    display: inline-block; font-size: 10px; color: #fff; background: #2E7D32;
+    border-radius: 8px; padding: 1px 7px; margin-left: 6px; vertical-align: 2px;
+  }
+  #cmp .plabel { font-size: 10px; color: #7C93A9; margin-top: 8px; }
+  #cmp .pval { font-size: 12px; color: #243B53; }
+  #cmp .fitrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  #cmp .fitbar { flex: 1; height: 8px; background: #E1EAF4; border-radius: 4px; overflow: hidden; }
+  #cmp .fitfill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #00A0E9, #0072CE); }
+  #cmp .fitnum { font-size: 12px; font-weight: 800; color: var(--navy); white-space: nowrap; }
+  #cmp .reason {
+    background: #F0F7FD; border-left: 3px solid var(--sky); border-radius: 0 6px 6px 0;
+    padding: 6px 8px; margin-top: 10px; font-size: 11.5px; color: #12406B; line-height: 1.45;
+  }
+  #cmp .reason b { color: var(--navy); }
+
+  /* ---- 전체화면 전용 TO 배지 (호스트의 플로팅 배지는 iframe 밖이라 안 보임) ---- */
+  #fsbadge {
+    display: none; position: fixed; right: 22px; bottom: 22px; z-index: 1400;
+    background: linear-gradient(135deg, #002B5B 0%, #0072CE 100%); color: #fff;
+    border-radius: 14px; padding: 9px 16px; box-shadow: 0 6px 18px rgba(0,44,91,.38);
+    font-size: 12.5px; line-height: 1.55; opacity: .96; pointer-events: none;
+  }
+  :fullscreen #fsbadge { display: block; }
+  #fsbadge .lbl { color: #A9D2F2; font-weight: 600; }
+  #fsbadge b { color: #FFD54F; font-size: 15px; }
+
   /* ---- CSS 조직도 트리 (연결선) ---- */
   .tree { overflow-x: auto; padding: 4px 2px 14px; }
   #zoomwrap { display: inline-block; transform-origin: top left; }
+  /* 연결선 기하: 부모 카드 하단 → (ul 패딩 26px: 드롭선) → 가로 레일
+     → (li 패딩 26px: 세로 스터브) → 자식 카드 상단.
+     li에 padding-top이 없으면 레일이 카드 상단과 겹치고 스터브가 카드 뒤로
+     숨어 "엣지가 노드에 안 꽂히는" 것처럼 보인다. */
   .tree ul {
     display: flex; justify-content: center; align-items: flex-start;
     padding-top: 26px; position: relative; list-style: none;
   }
-  .tree > ul { padding-top: 0; }
   .tree li {
     display: flex; flex-direction: column; align-items: center;
-    position: relative; padding: 0 10px;
+    position: relative; padding: 26px 10px 0;
   }
   .tree li::before, .tree li::after {
     content: ""; position: absolute; top: 0; right: 50%;
@@ -118,6 +190,7 @@
   }
   .tree li::after { right: auto; left: 50%; border-left: 2px solid var(--line); }
   .tree li:only-child::before, .tree li:only-child::after { display: none; }
+  .tree li:only-child { padding-top: 0; }  /* 드롭선이 카드에 바로 닿도록 */
   .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
   .tree li:last-child::before { border-right: 2px solid var(--line); border-radius: 0 6px 0 0; }
   .tree li:first-child::after { border-radius: 6px 0 0 0; }
@@ -125,7 +198,11 @@
     content: ""; position: absolute; top: 0; left: 50%;
     border-left: 2px solid var(--line); width: 0; height: 26px;
   }
-  .tree > ul > li::before, .tree > ul > li::after { display: none; }
+  /* 루트 노드: 연결선·여백 없음. (root ul은 #zoomwrap 안에 있어
+     `.tree > ul`로는 매칭되지 않는다 — 줌 래퍼 도입 때 생긴 버그) */
+  #zoomwrap > ul { padding-top: 0; }
+  #zoomwrap > ul > li { padding-top: 0; }
+  #zoomwrap > ul > li::before, #zoomwrap > ul > li::after { display: none; }
 
   /* ---- 말단(리더) 계층은 세로로 쌓기 ----
      가로로 12팀이 늘어서면 '화면 맞춤' 배율이 작아져 카드가 안 보인다.
@@ -204,6 +281,7 @@ var dragMeta = null;   // {emp, level, fromSlot}
 var seq = 0;
 var lastPayloadJson = null;
 var trayExpanded = false;  // 미배치 트레이 펼침 상태 (렌더 간 유지)
+var lockedFlags = {};      // {A: bool, B: bool} — 확정된 트랙은 드래그 잠금
 
 /* ---- 줌: 기본은 '화면 맞춤'(가로로 긴 조직도가 한눈에 들어오게) ---- */
 var zoomMode = "fit";   // "fit" | "manual"
@@ -262,8 +340,17 @@ function fillTip(c) {
   var p = c.profile || {};
 
   var head = el("div", "ptip-head");
-  head.appendChild(el("div", "ptip-name", c.vacant ? "공석 — " + c.title : c.name + " · " + (p.grade || "")));
-  head.appendChild(el("div", "ptip-sub", c.vacant ? (c.path || "") : c.title + (c.path ? " · " + c.path : "")));
+  if (!c.vacant && p.photo) {
+    var ph = document.createElement("img");
+    ph.className = "ptip-photo";
+    ph.src = p.photo;
+    ph.onerror = function () { this.style.display = "none"; };  // 오프라인 폴백
+    head.appendChild(ph);
+  }
+  var headTxt = el("div", "");
+  headTxt.appendChild(el("div", "ptip-name", c.vacant ? "공석 — " + c.title : c.name + " · " + (p.grade || "")));
+  headTxt.appendChild(el("div", "ptip-sub", c.vacant ? (c.path || "") : c.title + (c.path ? " · " + c.path : "")));
+  head.appendChild(headTxt);
   t.appendChild(head);
 
   var body = el("div", "ptip-body");
@@ -357,6 +444,135 @@ function showTip(card, c) {
 
 function hideTip() { if (tipEl) tipEl.style.display = "none"; }
 
+/* ---- 클릭 비교: 호버=즉시 프로필, 클릭=비교 대상 선택(2명 → 비교 패널) ---- */
+var compareSel = [];        // [{emp, name, sub, title, profile}]
+var suppressClick = false;  // 드래그 직후 발생하는 click 무시용
+
+function cmpHint() {
+  var hint = document.getElementById("cmphint");
+  if (!hint) {
+    hint = el("div", "");
+    hint.id = "cmphint";
+    document.body.appendChild(hint);
+  }
+  if (compareSel.length === 1) {
+    hint.textContent = "🔍 " + compareSel[0].name + " 선택됨 — 비교할 인원을 한 명 더 클릭하세요 (같은 인원 클릭 시 해제)";
+    hint.style.display = "block";
+  } else {
+    hint.style.display = "none";
+  }
+}
+
+function clearCompare() {
+  compareSel = [];
+  document.querySelectorAll(".cmp-selected").forEach(function (n) { n.classList.remove("cmp-selected"); });
+  var ov = document.getElementById("cmp");
+  if (ov) ov.classList.remove("open");
+  cmpHint();
+}
+
+var lastClickY = 0;  // 비교 패널을 클릭 지점 근처에 띄우기 위한 좌표
+
+function makeComparable(node, entry) {
+  node.addEventListener("click", function (ev) {
+    if (suppressClick || dragMeta) return;
+    ev.stopPropagation();
+    lastClickY = ev.clientY || 0;
+    var idx = -1;
+    compareSel.forEach(function (s, i) { if (s.emp === entry.emp) idx = i; });
+    if (idx >= 0) {
+      compareSel.splice(idx, 1);
+      node.classList.remove("cmp-selected");
+    } else {
+      if (compareSel.length >= 2) return;
+      compareSel.push(entry);
+      node.classList.add("cmp-selected");
+      if (compareSel.length === 2) { hideTip(); showCompare(); }
+    }
+    cmpHint();
+  });
+}
+
+function cmpColumn(entry, otherFit) {
+  var p = entry.profile || {};
+  var col = el("div", "cmp-col");
+
+  if (p.photo) {
+    var ph = document.createElement("img");
+    ph.className = "cmp-photo";
+    ph.src = p.photo;
+    ph.onerror = function () { this.style.display = "none"; };
+    col.appendChild(ph);
+  }
+  var nm = el("div", "cmp-name", entry.name + " · " + (p.grade || ""));
+  if (typeof p.fit === "number" && typeof otherFit === "number" && p.fit > otherFit) {
+    nm.appendChild(el("span", "cmp-win", "적합도 우위"));
+  }
+  col.appendChild(nm);
+  col.appendChild(el("div", "cmp-pos", entry.title || ""));
+
+  var fitrow = el("div", "fitrow");
+  if (typeof p.fit === "number") {
+    var bar = el("div", "fitbar");
+    var fill = el("div", "fitfill");
+    fill.style.width = Math.max(0, Math.min(100, p.fit)) + "%";
+    bar.appendChild(fill);
+    fitrow.appendChild(bar);
+    fitrow.appendChild(el("span", "fitnum", "적합도 " + p.fit + "점"));
+  } else {
+    fitrow.appendChild(el("span", "fitnum", "미배치 (포지션별 적합도 참조)"));
+  }
+  col.appendChild(fitrow);
+
+  [["평가 추이 (22→25)", p.trend], ["다면평가 (24/25)", p.multi],
+   ["세션 (부장/임원)", p.sessions], ["경력", p.career],
+   ["출신교 · 전공", p.edu], ["연령", p.age]].forEach(function (kv) {
+    col.appendChild(el("div", "plabel", kv[0]));
+    col.appendChild(el("div", "pval", kv[1] || "-"));
+  });
+
+  if (p.reasons && p.reasons.length) {
+    var rs = el("div", "reason");
+    rs.appendChild(el("b", "", "추천이유"));
+    p.reasons.forEach(function (r) { rs.appendChild(el("div", "", "· " + r)); });
+    col.appendChild(rs);
+  }
+  return col;
+}
+
+function showCompare() {
+  var ov = document.getElementById("cmp");
+  if (!ov) {
+    ov = el("div", "");
+    ov.id = "cmp";
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = "";
+  var panel = el("div", "cmp-panel");
+
+  var head = el("div", "cmp-head");
+  head.appendChild(el("div", "cmp-title",
+    "후보 비교 — " + compareSel[0].name + " vs " + compareSel[1].name));
+  var close = el("button", "cmp-close", "✕ 닫기");
+  close.addEventListener("click", clearCompare);
+  head.appendChild(close);
+  panel.appendChild(head);
+
+  var body = el("div", "cmp-body");
+  var f0 = (compareSel[0].profile || {}).fit;
+  var f1 = (compareSel[1].profile || {}).fit;
+  body.appendChild(cmpColumn(compareSel[0], f1));
+  body.appendChild(cmpColumn(compareSel[1], f0));
+  panel.appendChild(body);
+
+  // 클릭한 지점 근처에 패널이 보이도록 상단 여백 조정
+  panel.style.marginTop = Math.max(0, lastClickY - 140) + "px";
+
+  ov.appendChild(panel);
+  ov.addEventListener("click", function (ev) { if (ev.target === ov) clearCompare(); });
+  ov.classList.add("open");
+}
+
 /* ---- 위계 행 정렬: 같은 depth의 카드 높이를 통일해
    부모 카드 높이 차이로 자식 행이 어긋나는 문제를 막는다 ---- */
 function alignRows() {
@@ -402,6 +618,8 @@ function makeDraggable(node, emp, level, fromSlot) {
     node.classList.remove("dragging");
     clearCandidateTargets();
     document.querySelectorAll(".over").forEach(function (x) { x.classList.remove("over"); });
+    suppressClick = true;  // 드래그 직후 click이 비교 선택으로 오인되지 않게
+    setTimeout(function () { suppressClick = false; }, 250);
   });
 }
 
@@ -448,6 +666,10 @@ function buildCard(c, track, depth) {
   info.appendChild(el("div", "gr", c.sub));
   body.appendChild(info);
   if (c.emp && c.draggable) makeDraggable(body, c.emp, c.level, c.slot_id);
+  if (c.emp && c.profile) {
+    // 클릭 = 비교 대상 선택 (호버 프로필과 별개)
+    makeComparable(body, { emp: c.emp, name: c.name, title: c.title, profile: c.profile });
+  }
   card.appendChild(body);
 
   if (c.path) card.appendChild(el("div", "path", c.path));
@@ -460,7 +682,7 @@ function buildCard(c, track, depth) {
       } else {
         var row = el("div", "rrow" + (r.core ? " core" : ""),
                      "● " + r.name + " · " + r.grade + (r.core ? " ★" : ""));
-        makeDraggable(row, r.emp, "직원", c.slot_id);
+        if (!lockedFlags.B) makeDraggable(row, r.emp, "직원", c.slot_id);
         ro.appendChild(row);
       }
     });
@@ -541,6 +763,7 @@ function buildToolbar() {
 }
 
 function render(payload) {
+  lockedFlags = payload.confirmed || {};
   var root = document.getElementById("root");
   root.innerHTML = "";
 
@@ -554,6 +777,8 @@ function render(payload) {
   var tray = el("div", "");
   tray.id = "tray";
   if (trayExpanded) tray.classList.add("expanded");
+  var lockedA = payload.confirmed && payload.confirmed.A;
+  var lockedB = payload.confirmed && payload.confirmed.B;
   payload.tray.forEach(function (p) {
     var chip = el("div", "chip" + (p.succ ? " succ" : "") + (p.core ? " core" : ""));
     var lv = el("span", "lv", p.level);
@@ -561,7 +786,11 @@ function render(payload) {
     chip.appendChild(lv);
     chip.appendChild(document.createTextNode(p.name + " · " + p.grade + (p.core ? " ★" : "")));
     if (p.succ) chip.title = "후임 지정: " + p.succ;
-    makeDraggable(chip, p.emp, p.level, null);
+    var chipLocked = (p.level === "직원") ? lockedB : lockedA;
+    if (!chipLocked) makeDraggable(chip, p.emp, p.level, null);
+    if (p.profile) {
+      makeComparable(chip, { emp: p.emp, name: p.name, title: "미배치 · " + p.level, profile: p.profile });
+    }
     if (p.profile) {
       // 카드와 동일한 팝업을 재사용 — 미배치 인원도 프로필+추천 포지션 표시
       var pseudo = {
@@ -602,6 +831,21 @@ function render(payload) {
   treeWrap.appendChild(zoomWrap);
   root.appendChild(treeWrap);
 
+  // 전체화면 전용 TO 배지 (호스트의 플로팅 배지는 iframe 밖이라 전체화면에서 가려짐)
+  if (payload.metrics) {
+    var m = payload.metrics;
+    var fb = el("div", "");
+    fb.id = "fsbadge";
+    fb.appendChild(el("span", "lbl", m.label || ""));
+    fb.appendChild(document.createElement("br"));
+    fb.appendChild(document.createTextNode("공석 "));
+    fb.appendChild(el("b", "", String(m.vacant)));
+    fb.appendChild(document.createTextNode(
+      "명 · TO " + m.filled + "/" + m.total + " (충족률 " + m.fill_rate + "%)"));
+    root.appendChild(fb);
+  }
+
+  clearCompare();  // 배치가 바뀌면 이전 비교 선택은 무효
   hideTip();    // 이전 렌더의 팝업 잔상 제거
   alignRows();  // 같은 위계의 카드 높이 통일 → 행 어긋남 방지
   applyZoom();  // 내부에서 setHeight() 호출

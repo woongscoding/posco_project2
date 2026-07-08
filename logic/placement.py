@@ -254,6 +254,4 @@ def badges_for_person(person_row, slot_position_id=None):
         badges.append("신규보임")
     if person_row.get("순환") == "Y":
         badges.append("순환")
-    if "추천" in str(person_row.get("보직의견", "")) or "발탁" in str(person_row.get("보직의견", "")):
-        badges.append("★ IDP부합")
     return badges
