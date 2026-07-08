@@ -378,9 +378,10 @@ function fillTip(c) {
     }
 
     var grid = el("div", "pgrid");
-    [["평가 추이 (22→25)", p.trend], ["다면평가 (24/25)", p.multi],
+    [["소속 법인", p.corp], ["연령", p.age],
+     ["평가 추이 (22→25)", p.trend], ["다면평가 (24/25)", p.multi],
      ["세션 (부장/임원)", p.sessions], ["경력", p.career],
-     ["출신교 · 전공", p.edu], ["연령", p.age]].forEach(function (kv) {
+     ["출신교 · 전공", p.edu]].forEach(function (kv) {
       var cell = el("div", "");
       cell.appendChild(el("div", "plabel", kv[0]));
       cell.appendChild(el("div", "pval", kv[1] || "-"));
@@ -524,7 +525,7 @@ function cmpColumn(entry, otherFit) {
   }
   col.appendChild(fitrow);
 
-  [["평가 추이 (22→25)", p.trend], ["다면평가 (24/25)", p.multi],
+  [["소속 법인", p.corp], ["평가 추이 (22→25)", p.trend], ["다면평가 (24/25)", p.multi],
    ["세션 (부장/임원)", p.sessions], ["경력", p.career],
    ["출신교 · 전공", p.edu], ["연령", p.age]].forEach(function (kv) {
     col.appendChild(el("div", "plabel", kv[0]));

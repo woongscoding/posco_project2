@@ -164,7 +164,17 @@ def _render_header(data, slots, state, track):
         unsafe_allow_html=True,
     )
 
-    top_l, btn_track, btn_all, btn_confirm, btn_clear = st.columns([2.4, 1.05, 1.05, 1.05, 1.05])
+    corp_col, top_l, btn_track, btn_all, btn_confirm, btn_clear = st.columns(
+        [1.15, 2.0, 1.05, 1.05, 1.05, 1.05]
+    )
+    with corp_col:
+        st.radio(
+            "법인",
+            options=["전체", "홀딩스", "포스코"],
+            horizontal=True,
+            key="corp_filter",
+            help="미배치 후보 인재를 소속 법인 기준으로 필터링합니다.",
+        )
     with top_l:
         track_display = st.radio(
             "배치 대상 트랙",
@@ -333,6 +343,7 @@ def main():
         payload = build_org_payload(
             track, data, slots, state, core_talent_pool, scope,
             confirmed=st.session_state["confirmed"],
+            corp=st.session_state.get("corp_filter", "전체"),
         )
         event = render_org_dnd_chart(payload, key="org_dnd")
         handle_org_event(event, data, slots)

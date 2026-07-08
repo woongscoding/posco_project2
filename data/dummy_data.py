@@ -17,19 +17,22 @@ REFERENCE_DATE = date(2026, 7, 6)  # 데모 기준일 (고정값, datetime.now()
 # 조직 트리 정의 (본부 > 부서명 > 담당)
 # ---------------------------------------------------------------------------
 ORG_TREE = {
-    "전략경영본부": {
+    "경영지원본부": {
         "전략기획실": ["전략1담당", "전략2담당"],
         "인사실": ["인사기획담당", "인재개발담당"],
     },
-    "생산기술본부": {
+    "그룹DX전략실": {
         "생산1부": ["생산1담당", "생산2담당"],
         "기술연구소": ["연구1담당", "연구2담당"],
     },
-    "마케팅본부": {
+    "미래전략본부": {
         "마케팅1부": ["마케팅1담당", "마케팅2담당"],
         "영업기획부": ["영업1담당", "영업2담당"],
     },
 }
+
+# 후보 인재의 소속 법인 (법인 필터용): 지주사(홀딩스) / 사업회사(포스코)
+CORP_LIST = ["홀딩스", "포스코"]
 
 EVAL_GRADES = ["S", "A+", "A", "B+", "B", "C"]
 EVAL_WEIGHTS = [5, 12, 28, 28, 20, 7]
@@ -235,7 +238,8 @@ def _make_person(rng, emp_seq, level, name, home_div, home_dept, home_team,
         "24다면평가": multi_years["24다면평가"],
         "보직의견": rng.choice(BOJIK_OPINIONS),
         "사업회사": home_div,
-        "지주사": "Y" if home_div == "전략경영본부" else "N",
+        "법인": _weighted_choice(rng, CORP_LIST, [6, 4]),
+        "지주사": "N",  # 아래에서 법인 기준으로 재설정
         "순환": _weighted_choice(rng, ["Y", "N"], [2, 8]),
         "신규전입": _weighted_choice(rng, ["Y", "N"], [15, 85]) if level != "직원" else "N",
         "조직개편안_25년": current_position_id or "-",
@@ -249,6 +253,7 @@ def _make_person(rng, emp_seq, level, name, home_div, home_dept, home_team,
         "current_position_id": current_position_id,
         "level": level,
     }
+    row["지주사"] = "Y" if row["법인"] == "홀딩스" else "N"
     return row
 
 
