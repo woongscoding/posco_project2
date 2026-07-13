@@ -11,11 +11,19 @@ from pathlib import Path
 
 import streamlit as st
 
+from logic import chat_logger
 from logic import nlp_agent
 from logic import placement as pl
 
 # 챗봇 아바타: 파란 원 + 흰색 P (POSCO P-GPT 브랜딩)
 _PGPT_AVATAR = str(Path(__file__).parent.parent / "assets" / "pgpt_avatar.svg")
+
+
+def _record(history, role, text):
+    """대화 히스토리에 추가하면서, 설정돼 있으면 로컬 수집 서버로도 전송한다.
+    (수집 서버 미설정·오류 시에도 대화 흐름에는 영향 없음)"""
+    history.append({"role": role, "text": text})
+    chat_logger.log_turn(role, text)
 
 
 def set_placement(new_state, flash_msgs=None):
@@ -105,14 +113,14 @@ def _run_chat_command(command, data, slots):
     """챗봇 명령/질문 1건을 처리해 대화 히스토리에 결과를 남기고 rerun한다.
     이동 명령·조건부 배치(암묵지 조건)·인사이트 질문을 모두 지원한다."""
     history = st.session_state["chat_history"]
-    history.append({"role": "user", "text": command})
+    _record(history, "user", command)
 
     with st.spinner("P-GPT가 검토 중입니다..."):
         reply, actions, err = nlp_agent.ask_agent(
             command, st.session_state["placement"], data["people_df"], slots
         )
     if err:
-        history.append({"role": "assistant", "text": f"⚠️ {err}"})
+        _record(history, "assistant", f"⚠️ {err}")
         st.rerun()
 
     valid_actions, warnings = nlp_agent.validate_actions(actions, data["people_df"], slots)
@@ -141,7 +149,7 @@ def _run_chat_command(command, data, slots):
     if warnings:
         parts.append("\n".join(f"⚠️ {w}" for w in warnings))
 
-    history.append({"role": "assistant", "text": "\n\n".join(parts) or "응답이 없습니다."})
+    _record(history, "assistant", "\n\n".join(parts) or "응답이 없습니다.")
     st.rerun()
 
 
